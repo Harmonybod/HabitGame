@@ -53,21 +53,33 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
     suspend fun check(force: Boolean = false): AppRelease? {
         val now = System.currentTimeMillis()
         if (!force && now - prefs.getLong(KEY_CHECKED, 0) < CHECK_EVERY) {
-            return (_state.value as? UpdateState.Available)?.release
+            // Checked recently: show what was found then (kept across app restarts)
+            val known = savedRelease()?.takeIf { isNewer(it.version, installedVersion) }
+            if (known != null && _state.value == UpdateState.None) _state.value = UpdateState.Available(known)
+            return known
         }
-        val release = withContext(Dispatchers.IO) { runCatching { latestRelease() }.getOrNull() } ?: run {
+        val result = withContext(Dispatchers.IO) { runCatching { latestRelease() } }
+        if (result.isFailure) {
             if (force) _state.value = UpdateState.Failed(null, "Couldn't reach GitHub. Check your internet and try again.")
             return null
         }
         prefs.edit().putLong(KEY_CHECKED, now).apply()
-        return if (isNewer(release.version, installedVersion)) {
+        val release = result.getOrNull()   // null: nothing published yet
+        return if (release != null && isNewer(release.version, installedVersion)) {
+            prefs.edit().putString(KEY_RELEASE, gson.toJson(release)).apply()
             if (_state.value !is UpdateState.Downloading) _state.value = UpdateState.Available(release)
             release
         } else {
+            prefs.edit().remove(KEY_RELEASE).apply()
             _state.value = UpdateState.None
             null
         }
     }
+
+    private val gson = com.google.gson.Gson()
+
+    private fun savedRelease(): AppRelease? =
+        runCatching { gson.fromJson(prefs.getString(KEY_RELEASE, null), AppRelease::class.java) }.getOrNull()
 
     /** "Later": hides this version's banner until the next one comes out. */
     fun snooze(release: AppRelease) {
@@ -152,7 +164,11 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
             readTimeout = 10_000
         }
         try {
-            if (connection.responseCode != 200) return null
+            when (connection.responseCode) {
+                200 -> Unit
+                404 -> return null   // no releases published yet: up to date
+                else -> throw java.io.IOException("GitHub answered ${connection.responseCode}")
+            }
             val json = JsonParser.parseString(connection.inputStream.bufferedReader().readText()).asJsonObject
             val apk = json.getAsJsonArray("assets")
                 ?.map { it.asJsonObject }
@@ -175,6 +191,7 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
         private const val APK_TYPE = "application/vnd.android.package-archive"
         private const val KEY_CHECKED = "last_checked"
         private const val KEY_SNOOZED = "snoozed_version"
+        private const val KEY_RELEASE = "found_release"
         private const val CHECK_EVERY = 3 * 60 * 60_000L
 
         /** "2.10" is newer than "2.9"; "2.4" isn't newer than "2.4". Non-numbers count as 0. */

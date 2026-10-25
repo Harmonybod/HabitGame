@@ -30,7 +30,11 @@ if (-not $version) { throw "Couldn't find versionName in app/build.gradle.kts" }
 $tag = "v$version"
 
 if (git status --porcelain) { throw "There are uncommitted changes. Commit them first." }
-if (git tag --list $tag) { throw "$tag already exists. Raise versionName (and versionCode) in app/build.gradle.kts first." }
+# A tag on this very commit means an earlier run stopped half way: carry on from there
+$tagged = git tag --list $tag
+if ($tagged -and (git rev-list -n 1 $tag) -ne (git rev-parse HEAD)) {
+    throw "$tag already exists. Raise versionName (and versionCode) in app/build.gradle.kts first."
+}
 
 # Tests and the signed release APK
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
@@ -42,12 +46,16 @@ $apkName = "HabitGame-$version.apk"
 Copy-Item $apk "..\$apkName" -Force
 
 # Tag and push
-Invoke-Git tag -a $tag -m "HabitGame $version"
+if (-not $tagged) { Invoke-Git tag -a $tag -m "HabitGame $version" }
 Invoke-Git push origin main
 Invoke-Git push origin $tag
 
-# GitHub login from git's credential manager (never printed)
-$cred = "protocol=https`nhost=github.com`n`n" | git credential fill
+# GitHub login from git's credential manager (never printed). Given to git from a file with plain
+# line endings: Windows PowerShell's pipe changes them and git then can't read the request.
+$request = [IO.Path]::GetTempFileName()
+[IO.File]::WriteAllText($request, "protocol=https`nhost=github.com`n`n")
+$cred = cmd /c "git credential fill < `"$request`""
+Remove-Item $request
 $token = ($cred | Where-Object { $_ -like "password=*" }) -replace '^password=', ''
 if (-not $token) { throw "No GitHub login saved in git. Run 'git push' once to sign in, then try again." }
 $headers = @{ Authorization = "Bearer $token"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
