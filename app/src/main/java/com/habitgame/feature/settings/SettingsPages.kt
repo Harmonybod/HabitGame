@@ -172,6 +172,10 @@ fun GeneralSettingsScreen(
             }
         }
         item {
+            SettingsSectionHeader("⬆️ App version")
+            GameCard { AppVersionSection() }
+        }
+        item {
             SettingsSectionHeader("👋 Getting started")
             GameCard { SettingsRow("📖", "Show the intro again", "The step-by-step guide to how HabitGame works", onClick = onShowIntro) }
         }

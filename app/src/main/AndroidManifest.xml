@@ -22,6 +22,8 @@
     <!-- Settings → Calendar: puts tasks and habits into Google Calendar -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- Installing updates downloaded from GitHub Releases (Android asks the user each time) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Lets the app-lock picker see every app in the app drawer (Android 11+ hides them otherwise) -->
     <queries>
@@ -116,6 +118,17 @@
             android:name=".domain.location.LocationTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Lets Android's install screen read a downloaded update -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
 
         <!-- WorkManager: initialised by HabitGameApp so Hilt can inject into workers -->
         <provider

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
     @javax.inject.Inject lateinit var appRestrictionManager: com.habitgame.domain.restriction.AppRestrictionManager
     @javax.inject.Inject lateinit var cloudSync: com.habitgame.domain.sync.CloudSync
     @javax.inject.Inject lateinit var focusTimer: com.habitgame.domain.focus.FocusTimer
+    @javax.inject.Inject lateinit var appUpdater: com.habitgame.domain.update.AppUpdater
 
     override fun onResume() {
         super.onResume()
@@ -47,6 +48,8 @@ class MainActivity : ComponentActivity() {
         if (focusTimer.state.value.run != null) com.habitgame.domain.focus.FocusTimerService.start(this)
         // Settings → Devices shows when the app was last open on each phone
         cloudSync.touchDevice()
+        // A newer HabitGame on GitHub? (checked every few hours at most)
+        lifecycleScope.launch { appUpdater.check() }
         // Keep the app lock running whenever there are locked apps (Android may have stopped it)
         lifecycleScope.launch { appRestrictionManager.startMonitorIfNeeded() }
     }

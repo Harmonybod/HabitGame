@@ -54,6 +54,8 @@ fun DashboardScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val focus by viewModel.focus.collectAsState()
+    val updater = rememberAppUpdater()
+    val update by updater.state.collectAsState()
     var editing by remember { mutableStateOf<TaskEntity?>(null) }
 
     editing?.takeIf { it.isShopping }?.let { task ->
@@ -144,6 +146,15 @@ fun DashboardScreen(
                 }
             }
         }
+
+        // A newer version of HabitGame to install
+        val showUpdate = when (val u = update) {
+            is com.habitgame.domain.update.UpdateState.Available -> !updater.isSnoozed(u.release)
+            com.habitgame.domain.update.UpdateState.None -> false
+            is com.habitgame.domain.update.UpdateState.Failed -> u.release != null
+            else -> true
+        }
+        if (showUpdate) item(key = "update") { UpdateBanner() }
 
         // A focus session running in the background, or one that just finished
         focus.run?.let { run ->

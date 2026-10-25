@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Where downloaded updates are kept, so the install screen can read them -->
+<paths>
+    <external-files-path name="updates" path="Download/" />
+    <files-path name="updates_internal" path="." />
+</paths>
