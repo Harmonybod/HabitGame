@@ -16,6 +16,13 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 $repo = "Harmonybod/HabitGame"
 
+# Git writes progress to stderr, which Windows PowerShell would treat as an error: judge by the exit code instead
+function Invoke-Git {
+    $ErrorActionPreference = "Continue"
+    & git @args 2>&1 | ForEach-Object { "$_" }
+    if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') failed" }
+}
+
 # Version from the build file
 $gradleFile = Get-Content "app\build.gradle.kts" -Raw
 $version = [regex]::Match($gradleFile, 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
@@ -35,9 +42,9 @@ $apkName = "HabitGame-$version.apk"
 Copy-Item $apk "..\$apkName" -Force
 
 # Tag and push
-git tag -a $tag -m "HabitGame $version"
-git push origin main
-git push origin $tag
+Invoke-Git tag -a $tag -m "HabitGame $version"
+Invoke-Git push origin main
+Invoke-Git push origin $tag
 
 # GitHub login from git's credential manager (never printed)
 $cred = "protocol=https`nhost=github.com`n`n" | git credential fill
