@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My 100 Days</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAF0F7; --surface:#FFFFFF; --ink:#1C2740; --muted:#5B6782; --line:#D3DCE8;
+  --sun:#F2B705; --sun-ink:#3A2C00; --teal:#1F8A78; --empty:#D8E1EC; --today:#1C2740;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111827; --surface:#1A2335; --ink:#E8EDF6; --muted:#9AA6BF; --line:#2B3750;
+    --sun:#F5C02E; --sun-ink:#2A2000; --teal:#3CC2A9; --empty:#26324A; --today:#E8EDF6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111827; --surface:#1A2335; --ink:#E8EDF6; --muted:#9AA6BF; --line:#2B3750;
+  --sun:#F5C02E; --sun-ink:#2A2000; --teal:#3CC2A9; --empty:#26324A; --today:#E8EDF6;
+  color-scheme: dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+h1,h2,h3{font-family:"Bricolage Grotesque","Nunito Sans",system-ui,sans-serif;margin:0;line-height:1.1}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+
+/* Hero: the board of 100 days */
+.hero{padding:8px 0 20px}
+.dayline{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.daynum{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:clamp(56px,18vw,96px);letter-spacing:-0.03em;line-height:.9}
+.dayof{color:var(--muted);font-weight:600}
+.phase{margin:10px 0 18px;color:var(--muted);max-width:44ch}
+.phase strong{color:var(--ink)}
+.board{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+.cell{aspect-ratio:1;border:0;border-radius:50%;background:var(--empty);padding:0;position:relative;transition:transform .15s}
+.cell.partial{background:linear-gradient(to top,var(--sun) var(--p,0%),var(--empty) var(--p,0%))}
+.cell.full{background:var(--sun)}
+.cell.today{box-shadow:0 0 0 2.5px var(--today)}
+.cell.selected{transform:scale(1.18)}
+.cell.future{opacity:.45}
+.cell.mile::after{content:"";position:absolute;inset:38%;border-radius:50%;background:var(--ink);opacity:.55}
+.legend{display:flex;gap:16px;margin-top:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;background:var(--c)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:22px 0 8px}
+.stat{text-align:left}
+.stat b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:22px}
+.stat small{color:var(--muted);font-size:12px}
+
+section.panel{background:var(--surface);border-radius:18px;padding:18px;margin-top:16px;border:1px solid var(--line)}
+.panel h2{font-size:20px;margin-bottom:4px}
+.panel .sub{color:var(--muted);font-size:14px;margin:0 0 12px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.nav button{background:none;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;font-size:18px}
+.nav button:disabled{opacity:.3;cursor:default}
+
+.habit{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.habit:last-child{border-bottom:0}
+.habit input[type=checkbox]{appearance:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-content:center;margin:0}
+.habit input[type=checkbox]:checked{background:var(--sun);border-color:var(--sun)}
+.habit input[type=checkbox]:checked::after{content:"✓";color:var(--sun-ink);font-weight:800;font-size:15px}
+.habit label{flex:1;cursor:pointer}
+.time{display:inline-block;min-width:78px;color:var(--muted);font-weight:700;font-size:14px}
+
+.field{display:block;margin-top:12px}
+.field span{display:block;font-size:14px;font-weight:700;margin-bottom:4px}
+.field input,.field textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.field textarea{min-height:130px;resize:vertical;line-height:1.6}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.task{background:var(--bg);border-radius:12px;padding:12px 14px;margin-top:4px;font-size:15px}
+.task b{color:var(--teal)}
+
+.moods{display:flex;gap:6px;margin-top:6px}
+.moods button{flex:1;font-size:26px;background:var(--bg);border:2px solid transparent;border-radius:12px;padding:6px 0}
+.moods button[aria-pressed="true"]{border-color:var(--teal)}
+.prompt{font-style:italic;color:var(--muted);margin:12px 0 0}
+
+.save-note{font-size:13px;color:var(--muted);margin-top:10px;min-height:1.2em}
+.progress{height:10px;background:var(--empty);border-radius:999px;overflow:hidden;margin-top:10px}
+.progress div{height:100%;background:var(--teal);width:0}
+.btn{background:var(--ink);color:var(--bg);border:0;border-radius:12px;padding:11px 16px;font-weight:700;margin-top:14px}
+.link{background:none;border:0;color:var(--teal);font-weight:700;padding:0}
+details summary{cursor:pointer;font-weight:700;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:18px}
+.entries article{border-top:1px solid var(--line);padding:12px 0}
+.entries article h3{font-size:15px;margin-bottom:4px}
+.entries p{margin:0;white-space:pre-wrap;color:var(--ink)}
+.empty{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="hero">
+    <div class="dayline"><span class="daynum" id="dayNum">1</span><span class="dayof">of 100 days</span></div>
+    <p class="phase" id="phase"></p>
+    <div class="board" id="board" role="grid" aria-label="Your 100 days"></div>
+    <div class="legend">
+      <span style="--c:var(--sun)">All done</span>
+      <span style="--c:linear-gradient(to top,var(--sun) 50%,var(--empty) 50%)">Partly done</span>
+      <span style="--c:var(--empty)">Not yet</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sStreak">0</b><small>day streak</small></div>
+      <div class="stat"><b id="sCode">0h</b><small>coding</small></div>
+      <div class="stat"><b id="sSaved">0</b><small>saved</small></div>
+      <div class="stat"><b id="sJournal">0</b><small>journal entries</small></div>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="checkTitle">
+    <div class="nav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <h2 id="checkTitle">Today</h2>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+    <p class="sub" id="dateLabel"></p>
+    <div id="habits"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="codeTitle">
+    <h2 id="codeTitle">Coding</h2>
+    <p class="sub">Today’s suggested task</p>
+    <div class="task" id="codeTask"></div>
+    <div class="row2">
+      <label class="field"><span>Minutes practiced</span><input type="number" min="0" inputmode="numeric" id="codeMin" placeholder="0"></label>
+      <label class="field"><span>Saved today</span><input type="number" min="0" step="0.01" inputmode="decimal" id="saved" placeholder="0"></label>
+    </div>
+    <label class="field"><span>What I learned or built</span><input type="text" id="learned" placeholder="e.g. how loops work"></label>
+    <div class="progress" aria-label="Savings goal progress"><div id="goalBar"></div></div>
+    <p class="save-note" id="goalNote"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="wgTitle">
+    <h2 id="wgTitle">Weight gain</h2>
+    <p class="sub">Eat on time, every time. Tick each one off.</p>
+    <div id="wgList"></div>
+    <label class="field"><span>Weight today (optional)</span><input type="number" min="0" step="0.1" inputmode="decimal" id="weight" placeholder="kg"></label>
+    <p class="save-note" id="weightNote"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="journalTitle">
+    <h2 id="journalTitle">Journal</h2>
+    <p class="sub">How are you feeling?</p>
+    <div class="moods" id="moods"></div>
+    <p class="prompt" id="prompt"></p>
+    <label class="field"><span class="visually">Write freely</span><textarea id="journal" placeholder="No rules. Write what’s on your mind."></textarea></label>
+    <p class="save-note" id="saveNote"></p>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Read past entries</summary>
+      <div class="entries" id="entries"></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <details id="settings">
+      <summary>Challenge settings</summary>
+      <label class="field"><span>Start date</span><input type="date" id="startDate"></label>
+      <label class="field"><span>Savings goal for 100 days</span><input type="number" min="0" inputmode="decimal" id="goal" placeholder="e.g. 500"></label>
+      <label class="field"><span>Daily habits, one per line</span><textarea id="habitList" style="min-height:120px"></textarea></label>
+      <label class="field"><span>Weight gain schedule, one per line (time, then task)</span><textarea id="wgSched" style="min-height:170px"></textarea></label>
+      <button class="btn" id="saveSettings">Save settings</button>
+      <p class="save-note" id="settingsNote"></p>
+    </details>
+  </section>
+</main>
+
+<script>
+(function(){
+  var DEFAULT_HABITS=["Read","Drink water","Make my bed","Take care of my body","Practice coding"];
+  var DEFAULT_WG=["08:00 Breakfast with protein (eggs, milk, oats)","10:30 Snack: banana, nuts or peanut butter toast","13:00 Lunch: full plate, add rice or bread","16:00 Smoothie or yogurt with fruit","18:00 Strength workout, 20–30 min","19:30 Dinner with protein and carbs","21:30 Small bedtime snack (milk, nuts)"];
+  var MOODS=["😞","😕","😐","🙂","😄"];
+  var PROMPTS=[
+    "What’s one thing you’re proud of today?",
+    "What felt hard today, and what helped?",
+    "Describe your energy today in three words.",
+    "What did you learn about yourself this week?",
+    "What would make tomorrow a good day?",
+    "Who or what are you grateful for right now?",
+    "What’s one worry you can let go of tonight?",
+    "When did you feel most like yourself today?",
+    "What’s something small that made you smile?",
+    "If day 100 you could read this, what would you want them to know?",
+    "What habit felt easiest today? Which felt hardest?",
+    "What are you avoiding, and why?",
+    "How did you take care of your body today?",
+    "What’s one thing you’d tell your day 1 self?"
+  ];
+  var PHASES=[
+    {to:10,name:"Days 1–10: Show up",tip:"Don’t aim for perfect. Aim to check in every single day."},
+    {to:30,name:"Days 11–30: Build the rhythm",tip:"Habits stick around now. Keep the same time each morning."},
+    {to:50,name:"Days 31–50: Push a little",tip:"Add five more minutes to coding or reading."},
+    {to:75,name:"Days 51–75: The quiet middle",tip:"Motivation dips here. Reread your early journal entries."},
+    {to:99,name:"Days 76–99: Finish strong",tip:"Start a small coding project you can show off on day 100."},
+    {to:100,name:"Day 100: You did it",tip:"Read your whole journal and write a letter to your future self."}
+  ];
+  var CODE_TASKS=[
+    [10,"Pick one language (Python or JavaScript are great starts). Learn variables, printing, and basic math."],
+    [20,"Practice if/else and loops. Write a tiny program, like a number guessing game."],
+    [30,"Learn functions. Rewrite an earlier program using functions."],
+    [40,"Lists/arrays and dictionaries/objects. Build a simple to-do list in the terminal."],
+    [50,"Read errors calmly. Break your code on purpose and fix it."],
+    [60,"Learn to use Git: save your projects and push one to GitHub."],
+    [70,"Make a simple web page with HTML and CSS."],
+    [80,"Add JavaScript to your page: buttons that do things."],
+    [90,"Build a mini project: a habit tracker, quiz, or budget calculator."],
+    [100,"Polish your project, write a short README, and share it."]
+  ];
+  var MILESTONES=[1,7,14,30,50,75,100];
+
+  var state={settings:{start:todayStr(),goal:0,habits:DEFAULT_HABITS.slice(),wg:DEFAULT_WG.slice()},days:{}};
+  var selected=1, db=null, base=null, timers={};
+
+  function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+  function parseDate(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2])}
+  function currentDay(){var diff=Math.floor((new Date().setHours(0,0,0,0)-parseDate(state.settings.start))/86400000)+1;return Math.max(1,Math.min(100,diff))}
+  function dateOf(n){var d=parseDate(state.settings.start);d.setDate(d.getDate()+n-1);return d}
+  function day(n){return state.days["d"+n]||{checks:{},wgChecks:{},mood:null,journal:"",codeMin:0,saved:0,learned:"",weight:""}}
+  function score(n){var d=day(n),h=state.settings.habits;if(!h.length)return 0;var c=h.filter(function(x){return d.checks[x]}).length;return c/h.length}
+  var $=function(id){return document.getElementById(id)};
+
+  // Storage: private per-person db when available, else this browser
+  function lsGet(){try{var v=localStorage.getItem("hundred-days");return v?JSON.parse(v):null}catch(e){return null}}
+  function lsSet(){try{localStorage.setItem("hundred-days",JSON.stringify(state))}catch(e){}}
+  function persistDay(n){
+    lsSet();
+    if(!base)return;
+    clearTimeout(timers[n]);
+    timers[n]=setTimeout(function(){
+      base.doc("d"+n).set(JSON.parse(JSON.stringify(day(n)))).then(function(){note("Saved")}).catch(function(){note("Saved on this device only")});
+    },600);
+  }
+  function persistSettings(){
+    lsSet();
+    if(base)return base.doc("settings").set(JSON.parse(JSON.stringify(state.settings)));
+    return Promise.resolve();
+  }
+  function note(t){$("saveNote").textContent=t;clearTimeout(timers.note);timers.note=setTimeout(function(){$("saveNote").textContent=""},2000)}
+
+  function renderBoard(){
+    var b=$("board"),cur=currentDay();b.innerHTML="";
+    for(var i=1;i<=100;i++){
+      var c=document.createElement("button"),s=score(i);
+      c.className="cell";c.setAttribute("aria-label","Day "+i+(s?", "+Math.round(s*100)+"% done":""));
+      if(s>=1)c.classList.add("full");else if(s>0){c.classList.add("partial");c.style.setProperty("--p",Math.round(s*100)+"%")}
+      if(i===cur)c.classList.add("today");
+      if(i>cur)c.classList.add("future");
+      if(i===selected)c.classList.add("selected");
+      if(MILESTONES.indexOf(i)>-1&&s===0)c.classList.add("mile");
+      (function(n){c.onclick=function(){if(n<=currentDay()){selected=n;render()}}})(i);
+      b.appendChild(c);
+    }
+  }
+  function renderStats(){
+    var cur=currentDay(),streak=0,code=0,saved=0,j=0;
+    for(var i=cur;i>=1;i--){if(score(i)>0)streak++;else if(i!==cur)break;}
+    for(var k in state.days){var d=state.days[k];code+=+d.codeMin||0;saved+=+d.saved||0;if((d.journal||"").trim())j++}
+    $("sStreak").textContent=streak;$("sCode").textContent=(code>=60?(code/60).toFixed(1)+"h":code+"m");
+    $("sSaved").textContent=saved%1?saved.toFixed(2):saved;$("sJournal").textContent=j;
+    var g=+state.settings.goal||0;
+    $("goalBar").style.width=g?Math.min(100,saved/g*100)+"%":"0";
+    $("goalNote").textContent=g?(saved>=g?"Goal reached. Amazing!":"Saved "+saved+" of "+g+" goal"):"Set a savings goal in Challenge settings.";
+  }
+  function renderToday(){
+    var cur=currentDay(),d=day(selected);
+    $("dayNum").textContent=cur;
+    var ph=PHASES.find(function(p){return cur<=p.to});
+    $("phase").innerHTML="<strong>"+ph.name+".</strong> "+ph.tip;
+    $("checkTitle").textContent=selected===cur?"Today":"Day "+selected;
+    $("dateLabel").textContent="Day "+selected+" · "+dateOf(selected).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+    $("prev").disabled=selected<=1;$("next").disabled=selected>=cur;
+    var h=$("habits");h.innerHTML="";
+    state.settings.habits.forEach(function(name,idx){
+      var row=document.createElement("div");row.className="habit";
+      var cb=document.createElement("input");cb.type="checkbox";cb.id="h"+idx;cb.checked=!!d.checks[name];
+      var lb=document.createElement("label");lb.htmlFor="h"+idx;lb.textContent=name;
+      cb.onchange=function(){var dd=edit(selected);dd.checks[name]=cb.checked;persistDay(selected);renderBoard();renderStats()};
+      row.appendChild(cb);row.appendChild(lb);h.appendChild(row);
+    });
+    $("codeTask").innerHTML="<b>Day "+selected+":</b> "+CODE_TASKS.find(function(t){return selected<=t[0]})[1];
+    $("codeMin").value=d.codeMin||"";$("saved").value=d.saved||"";$("learned").value=d.learned||"";
+    var w=$("wgList");w.innerHTML="";
+    (state.settings.wg||DEFAULT_WG).forEach(function(line,idx){
+      var row=document.createElement("div");row.className="habit";
+      var cb=document.createElement("input");cb.type="checkbox";cb.id="w"+idx;cb.checked=!!(d.wgChecks&&d.wgChecks[line]);
+      var lb=document.createElement("label");lb.htmlFor="w"+idx;
+      var t=line.match(/^(\d{1,2}:\d{2})\s+(.*)$/);
+      if(t){var tm=document.createElement("span");tm.className="time";tm.textContent=fmtTime(t[1]);lb.appendChild(tm);lb.appendChild(document.createTextNode(t[2]))}else lb.textContent=line;
+      cb.onchange=function(){edit(selected).wgChecks[line]=cb.checked;persistDay(selected)};
+      row.appendChild(cb);row.appendChild(lb);w.appendChild(row);
+    });
+    $("weight").value=d.weight||"";renderWeightNote();
+    var m=$("moods");m.innerHTML="";
+    MOODS.forEach(function(e,i){var bt=document.createElement("button");bt.textContent=e;bt.setAttribute("aria-label","Mood "+(i+1)+" of 5");bt.setAttribute("aria-pressed",d.mood===i);
+      bt.onclick=function(){edit(selected).mood=i;persistDay(selected);renderToday();renderEntries()};m.appendChild(bt)});
+    $("prompt").textContent=PROMPTS[(selected-1)%PROMPTS.length];
+    $("journal").value=d.journal||"";
+  }
+  function renderEntries(){
+    var e=$("entries"),list=[];
+    for(var i=100;i>=1;i--){var d=state.days["d"+i];if(d&&((d.journal||"").trim()||d.mood!=null))list.push([i,d])}
+    e.innerHTML=list.length?"":"<p class='empty'>Your entries will show up here once you start writing.</p>";
+    list.forEach(function(x){var a=document.createElement("article"),h=document.createElement("h3"),p=document.createElement("p");
+      h.textContent="Day "+x[0]+(x[1].mood!=null?" "+MOODS[x[1].mood]:"");p.textContent=x[1].journal||"";a.appendChild(h);a.appendChild(p);e.appendChild(a)});
+  }
+  function renderSettings(){$("startDate").value=state.settings.start;$("goal").value=state.settings.goal||"";$("habitList").value=state.settings.habits.join("\n");$("wgSched").value=(state.settings.wg||DEFAULT_WG).join("\n")}
+  function fmtTime(s){var p=s.split(":"),h=+p[0];return (h%12||12)+":"+p[1]+(h<12?" AM":" PM")}
+  function renderWeightNote(){var first=null,last=null;for(var i=1;i<=100;i++){var x=state.days["d"+i];if(x&&+x.weight){if(!first)first=[i,+x.weight];last=[i,+x.weight]}}
+    $("weightNote").textContent=first?(first[0]===last[0]?"Starting weight logged on day "+first[0]+".":"Day "+first[0]+": "+first[1]+" → Day "+last[0]+": "+last[1]+" ("+(last[1]>=first[1]?"+":"")+(last[1]-first[1]).toFixed(1)+")"):"Weigh yourself once a week, same morning, before breakfast."}
+  function render(){renderBoard();renderStats();renderToday();renderEntries()}
+  function edit(n){if(!state.days["d"+n])state.days["d"+n]=day(n);var d=state.days["d"+n];d.checks=d.checks||{};d.wgChecks=d.wgChecks||{};return d}
+
+  $("prev").onclick=function(){if(selected>1){selected--;render()}};
+  $("next").onclick=function(){if(selected<currentDay()){selected++;render()}};
+  $("codeMin").oninput=function(){edit(selected).codeMin=+this.value||0;persistDay(selected);renderStats()};
+  $("saved").oninput=function(){edit(selected).saved=+this.value||0;persistDay(selected);renderStats()};
+  $("learned").oninput=function(){edit(selected).learned=this.value;persistDay(selected)};
+  $("weight").oninput=function(){edit(selected).weight=+this.value||"";persistDay(selected);renderWeightNote()};
+  $("journal").oninput=function(){edit(selected).journal=this.value;persistDay(selected);clearTimeout(timers.ent);timers.ent=setTimeout(function(){renderEntries();renderStats()},800)};
+  $("saveSettings").onclick=function(){
+    var hs=$("habitList").value.split("\n").map(function(s){return s.trim()}).filter(Boolean);
+    state.settings.start=$("startDate").value||state.settings.start;
+    state.settings.goal=+$("goal").value||0;
+    state.settings.habits=hs.length?hs:DEFAULT_HABITS.slice();
+    var ws=$("wgSched").value.split("\n").map(function(s){return s.trim()}).filter(Boolean);
+    state.settings.wg=ws.length?ws:DEFAULT_WG.slice();
+    selected=currentDay();
+    persistSettings().then(function(){$("settingsNote").textContent="Saved settings"}).catch(function(){$("settingsNote").textContent="Saved on this device only"});
+    render();
+  };
+
+  var local=lsGet();if(local&&local.settings){state=local}
+  selected=currentDay();renderSettings();render();
+
+  // Connect private cloud storage so the journal follows you across devices
+  (async function(){
+    try{
+      if(!window.claude||!window.claude.use)return;
+      db=await window.claude.use("db");var user=await window.claude.use("user");
+      if(!db||!user)return;var id=await user.id();if(!id)return;
+      base=db.collection("data/users/"+id);
+      var snap=await base.limit(200).get();
+      if(snap.empty){ // first time: move anything from this device up
+        await persistSettings();
+        for(var k in state.days)await base.doc(k).set(JSON.parse(JSON.stringify(state.days[k])));
+        return;
+      }
+      var fresh={settings:state.settings,days:{}};
+      snap.docs.forEach(function(d){if(d.id==="settings")fresh.settings=Object.assign({},d.data());else fresh.days[d.id]=JSON.parse(JSON.stringify(d.data()))});
+      if(!fresh.settings.habits)fresh.settings.habits=DEFAULT_HABITS.slice();
+      state=fresh;lsSet();selected=currentDay();renderSettings();render();
+    }catch(e){base=null}
+  })();
+})();
+</script>
+</body>
+</html>

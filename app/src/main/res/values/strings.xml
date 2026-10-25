@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HabitGame</string>
+
+    <!-- Home-screen widgets: names and descriptions in the widget picker -->
+    <string name="widget_checklist_name">Today\'s checklist</string>
+    <string name="widget_checklist_description">Tick off today\'s tasks and habits right from your home screen</string>
+    <string name="widget_character_name">Character card</string>
+    <string name="widget_character_description">Your rank, level, XP, coins and streak</string>
+    <string name="widget_board_name">100-day board</string>
+    <string name="widget_board_description">Your 100 circles, filling up day by day</string>
+    <string name="widget_savings_name">Savings jar</string>
+    <string name="widget_savings_description">Money saved toward your goal, with a quick Add button</string>
+</resources>

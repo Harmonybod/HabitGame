@@ -1,0 +1,21 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Release signing key and passwords
+/keystore/
+keystore.properties
+
+# Build output and caches (every module)
+build/
+.kotlin/
+
+# Firebase config for this app's project; the app builds without it (cloud sync is then off)
+app/google-services.json
