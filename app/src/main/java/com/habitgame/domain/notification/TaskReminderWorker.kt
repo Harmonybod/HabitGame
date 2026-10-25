@@ -52,8 +52,8 @@ class TaskReminderWorker @AssistedInject constructor(
         }
 
         if (wave == WAVE_NUDGE && task.isRecurring) {
-            val user = userRepo.getUser()
-            schedule(applicationContext, task, user?.taskReminderLeads ?: listOf(5), user?.deadlineReminderLeads ?: listOf(60, 15, 5))
+            val (leads, deadlineLeads) = (userRepo.getUser() ?: com.habitgame.core.database.entity.UserEntity()).appReminderLeads(applicationContext)
+            schedule(applicationContext, task, leads, deadlineLeads)
         }
         return Result.success()
     }

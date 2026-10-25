@@ -53,5 +53,13 @@ object ReminderTimes {
     }
 }
 
+/**
+ * The reminder times HabitGame itself uses: none when the calendar reminds instead
+ * (Settings → Calendar). Returns task/habit times and shopping deadline times.
+ */
+fun UserEntity.appReminderLeads(context: android.content.Context): Pair<List<Int>, List<Int>> =
+    if (com.habitgame.domain.calendar.CalendarSync.appRemindersOn(context)) taskReminderLeads to deadlineReminderLeads
+    else emptyList<Int>() to emptyList()
+
 val UserEntity.taskReminderLeads: List<Int> get() = ReminderTimes.parse(reminderLeadTimes)
 val UserEntity.deadlineReminderLeads: List<Int> get() = ReminderTimes.parse(deadlineReminderTimes)

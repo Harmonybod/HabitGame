@@ -44,7 +44,7 @@ class HabitReminderWorker @AssistedInject constructor(
             notify(applicationContext, habit, wave, habitRepo.getHabitStreak(habit.id))
         }
         if (wave == WAVE_NUDGE) {
-            schedule(applicationContext, habit, doneToday, userRepo.getUser()?.taskReminderLeads ?: listOf(5))
+            schedule(applicationContext, habit, doneToday, (userRepo.getUser() ?: com.habitgame.core.database.entity.UserEntity()).appReminderLeads(applicationContext).first)
         }
         return Result.success()
     }

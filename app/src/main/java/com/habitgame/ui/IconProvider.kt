@@ -52,6 +52,7 @@ object IconProvider {
         "tasks"     -> if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle
         "habits"    -> Icons.Filled.Loop
         "journal"   -> if (selected) Icons.Filled.EditNote else Icons.Outlined.EditNote
+        "notes"     -> if (selected) Icons.Filled.StickyNote2 else Icons.Outlined.StickyNote2
         "savings"   -> if (selected) Icons.Filled.Savings else Icons.Outlined.Savings
         "shop"      -> if (selected) Icons.Filled.Store else Icons.Outlined.Store
         "profile"   -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
@@ -102,6 +103,7 @@ object IconProvider {
         "tasks"     -> if (selected) Icons.Filled.TaskAlt else Icons.Outlined.TaskAlt
         "habits"    -> Icons.Filled.Autorenew
         "journal"   -> if (selected) Icons.Filled.AutoStories else Icons.Outlined.AutoStories
+        "notes"     -> if (selected) Icons.Filled.Notes else Icons.Outlined.Notes
         "savings"   -> if (selected) Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet
         "shop"      -> if (selected) Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag
         "profile"   -> if (selected) Icons.Filled.AccountCircle else Icons.Outlined.AccountCircle
@@ -152,6 +154,7 @@ object IconProvider {
         "tasks"     -> Icons.Sharp.Checklist
         "habits"    -> Icons.Sharp.Refresh
         "journal"   -> Icons.Sharp.Book
+        "notes"     -> Icons.Sharp.Description
         "savings"   -> Icons.Sharp.Savings
         "shop"      -> Icons.Sharp.Storefront
         "profile"   -> Icons.Sharp.Badge

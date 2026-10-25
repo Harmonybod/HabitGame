@@ -25,6 +25,7 @@ class HabitGameApp : Application(), Configuration.Provider {
     @Inject lateinit var trackerManager: TrackerManager
     @Inject lateinit var database: com.habitgame.core.database.AppDatabase
     @Inject lateinit var cloudSync: com.habitgame.domain.sync.CloudSync
+    @Inject lateinit var calendarSync: com.habitgame.domain.calendar.CalendarSync
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,6 +44,7 @@ class HabitGameApp : Application(), Configuration.Provider {
         appScope.launch { trackerManager.runDailyMaintenance() }
         watchForWidgetChanges()
         cloudSync.start(appScope)
+        calendarSync.start(appScope)
     }
 
     /** Home-screen widgets redraw whenever the data they show changes, wherever it changed. */

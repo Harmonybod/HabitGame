@@ -56,10 +56,18 @@ class MainActivity : ComponentActivity() {
         rememberWidgetTarget(intent)
     }
 
-    /** A widget button (e.g. Savings "+ Add") asked to open a particular screen. */
+    /** A widget button (e.g. Savings "+ Add") asked to open a particular screen, or something was shared in. */
     private fun rememberWidgetTarget(intent: Intent?) {
-        // A song or album shared from Spotify, YouTube Music, Apple Music…
-        if (intent?.action == Intent.ACTION_SEND) {
+        val shared = intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE
+        if (shared && intent!!.component?.className?.endsWith(".ShareToNotes") == true) {
+            // "Save to notes": read it now, while HabitGame may still open the shared file
+            val from = referrer?.takeIf { it.scheme == "android-app" }?.host
+            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                com.habitgame.domain.notes.SharedNotes.read(this@MainActivity, intent, from)
+                    ?.let { com.habitgame.domain.notes.SharedNotes.pending.value = it }
+            }
+        } else if (intent?.action == Intent.ACTION_SEND) {
+            // "Add to journal": a song or album shared from Spotify, YouTube Music, Apple Music…
             intent.getStringExtra(Intent.EXTRA_TEXT)?.let { com.habitgame.domain.music.SharedMusic.pending.value = it }
         }
         intent?.getStringExtra(com.habitgame.widget.WidgetLaunch.EXTRA)?.let { com.habitgame.widget.WidgetLaunch.pending.value = it }
@@ -230,6 +238,10 @@ fun HabitGameContent(
     val sharedMusic by com.habitgame.domain.music.SharedMusic.pending.collectAsState()
     LaunchedEffect(sharedMusic) {
         if (sharedMusic != null) navController.navigate("journal") { launchSingleTop = true }
+    }
+    val sharedNote by com.habitgame.domain.notes.SharedNotes.pending.collectAsState()
+    LaunchedEffect(sharedNote) {
+        if (sharedNote != null) navController.navigate("notes") { launchSingleTop = true }
     }
     LaunchedEffect(widgetTarget) {
         when (widgetTarget) {

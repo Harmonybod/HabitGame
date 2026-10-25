@@ -67,6 +67,12 @@ fun HabitGameNavGraph(navController: NavHostController) {
         composable("journal") {
             ScreenFrame { JournalScreen() }
         }
+        composable("notes") {
+            ScreenFrame { com.habitgame.feature.notes.NotesScreen(onOpen = { id -> navController.navigate("note/$id") }) }
+        }
+        composable("note/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+            com.habitgame.feature.notes.NoteEditorScreen(onBack = goBack)
+        }
         composable("savings") {
             ScreenFrame { SavingsScreen() }
         }
@@ -114,6 +120,7 @@ fun HabitGameNavGraph(navController: NavHostController) {
         }
         composable(SettingsRoutes.DEVICES) { DevicesScreen(onBack = goBack) }
         composable(SettingsRoutes.NOTIFICATIONS) { NotificationSettingsScreen(onBack = goBack) }
+        composable(SettingsRoutes.CALENDAR) { CalendarSettingsScreen(onBack = goBack) }
         composable(SettingsRoutes.CUSTOMIZATION) { CustomizationScreen(onBack = goBack) }
         composable(SettingsRoutes.APP_LOCK) { AppLockScreen(onBack = goBack) }
         composable(SettingsRoutes.MANUAL_SYNC) { ManualSyncScreen(onBack = goBack) }

@@ -24,9 +24,10 @@ import com.habitgame.core.database.entity.*
         DayProgressEntity::class,
         JournalEntryEntity::class,
         SavingsEntryEntity::class,
-        XpLogEntity::class
+        XpLogEntity::class,
+        NoteEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun savingsDao(): SavingsDao
     abstract fun xpLogDao(): XpLogDao
     abstract fun transferDao(): TransferDao
+    abstract fun noteDao(): NoteDao
 
     companion object {
         const val DATABASE_NAME = "habitgame_db"
@@ -96,6 +98,16 @@ abstract class AppDatabase : RoomDatabase() {
          * App Unlock time now counts only while locked apps are open, the XP graph gets a history
          * table (filled from what was already earned), and No Restriction Day costs 600.
          */
+        /** The Notes tab: notes written in HabitGame or shared in from Samsung Notes and other apps. */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, " +
+                        "body TEXT NOT NULL, source TEXT NOT NULL, pinned INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)"
+                )
+            }
+        }
+
         /**
          * Shopping list tasks (price range and optional deadline), and reminders at several
          * times instead of one (the old single time carries over).

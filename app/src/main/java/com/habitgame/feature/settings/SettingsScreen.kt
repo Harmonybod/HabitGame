@@ -30,6 +30,7 @@ object SettingsRoutes {
     const val GENERAL = "settings/general"
     const val DEVICES = "settings/devices"
     const val NOTIFICATIONS = "settings/notifications"
+    const val CALENDAR = "settings/calendar"
     const val CUSTOMIZATION = "settings/customization"
     const val APP_LOCK = "settings/app_lock"
     const val MANUAL_SYNC = "settings/manual_sync"
@@ -104,6 +105,7 @@ fun SettingsScreen(
                         Triple("⚙️", "General", "Level ${user.level} · 🔥 ${user.currentStreak}-day streak · " + if (syncState.signedIn) "synced" else "not signed in") to SettingsRoutes.GENERAL,
                         Triple("📲", "Devices", if (syncState.signedIn) "Phones using your account" else "Sign in to see your phones") to SettingsRoutes.DEVICES,
                         Triple("🔔", "Notifications", "When reminders come") to SettingsRoutes.NOTIFICATIONS,
+                        Triple("📅", "Calendar", "Put tasks and habits in Google Calendar") to SettingsRoutes.CALENDAR,
                         Triple("🎨", "Customization", "Themes, icon packs, glass, colours, widgets") to SettingsRoutes.CUSTOMIZATION,
                         Triple("🔒", "App lock", if (state.lockedApps == 0) "No apps locked" else "${state.lockedApps} app${if (state.lockedApps == 1) "" else "s"} locked") to SettingsRoutes.APP_LOCK,
                         Triple("🔑", "Manual sync", "Move progress with a transfer code") to SettingsRoutes.MANUAL_SYNC

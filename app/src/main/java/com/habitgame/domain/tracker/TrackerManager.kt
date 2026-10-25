@@ -15,8 +15,7 @@ import com.habitgame.core.database.repository.TrackerRepository
 import com.habitgame.core.database.repository.UserRepository
 import com.habitgame.domain.engine.EconomyManager
 import com.habitgame.domain.notification.TaskReminderWorker
-import com.habitgame.domain.notification.deadlineReminderLeads
-import com.habitgame.domain.notification.taskReminderLeads
+import com.habitgame.domain.notification.appReminderLeads
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -207,7 +206,7 @@ class TrackerManager @Inject constructor(
     /** Reminder times from Settings: before tasks and habits, and before shopping deadlines. */
     private suspend fun leads(): Pair<List<Int>, List<Int>> {
         val user = userRepo.getUser() ?: com.habitgame.core.database.entity.UserEntity()
-        return user.taskReminderLeads to user.deadlineReminderLeads
+        return user.appReminderLeads(context)
     }
 
     suspend fun rescheduleAllReminders() {

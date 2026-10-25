@@ -30,6 +30,7 @@ object GameIconPack {
         "tasks" -> R.drawable.gp_tasks
         "habits" -> R.drawable.gp_habits
         "journal" -> R.drawable.gp_journal
+        "notes" -> R.drawable.gp_scroll
         "savings" -> R.drawable.gp_savings
         "shop" -> R.drawable.gp_shop
         "profile" -> R.drawable.gp_profile

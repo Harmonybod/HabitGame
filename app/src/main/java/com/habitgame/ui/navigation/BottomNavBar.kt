@@ -20,6 +20,7 @@ fun HabitGameBottomBar(navController: NavHostController, iconPack: String = "def
         Triple("tasks",     "Tasks",   "tasks"),
         Triple("habits",    "Habits",  "habits"),
         Triple("journal",   "Journal", "journal"),
+        Triple("notes",     "Notes",   "notes"),
         Triple("savings",   "Savings", "savings"),
         Triple("shop",      "Shop",    "shop")
     )

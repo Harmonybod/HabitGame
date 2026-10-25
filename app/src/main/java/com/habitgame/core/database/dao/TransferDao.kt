@@ -19,6 +19,7 @@ interface TransferDao {
     @Query("SELECT * FROM savings_entries") suspend fun savings(): List<SavingsEntryEntity>
     @Query("SELECT * FROM xp_log") suspend fun xpLog(): List<XpLogEntity>
     @Query("SELECT * FROM focus_sessions WHERE wasCompleted = 1") suspend fun focusSessions(): List<FocusSessionEntity>
+    @Query("SELECT * FROM notes") suspend fun notes(): List<NoteEntity>
     @Query("SELECT name FROM reward_items WHERE category = 'COSMETIC' AND isOwned = 1") suspend fun ownedCosmetics(): List<String>
 
     @Query("DELETE FROM tasks") suspend fun clearTasks()
@@ -31,6 +32,7 @@ interface TransferDao {
     @Query("DELETE FROM savings_entries") suspend fun clearSavings()
     @Query("DELETE FROM xp_log") suspend fun clearXpLog()
     @Query("DELETE FROM focus_sessions") suspend fun clearFocusSessions()
+    @Query("DELETE FROM notes") suspend fun clearNotes()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putTasks(items: List<TaskEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putHabits(items: List<HabitEntity>)
@@ -42,6 +44,7 @@ interface TransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putSavings(items: List<SavingsEntryEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putXpLog(items: List<XpLogEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putFocusSessions(items: List<FocusSessionEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putNotes(items: List<NoteEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putChallenge(challenge: ChallengeEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putUser(user: UserEntity)
 

@@ -19,6 +19,9 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Settings → Calendar: puts tasks and habits into Google Calendar -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <!-- Lets the app-lock picker see every app in the app drawer (Android 11+ hides them otherwise) -->
     <queries>
@@ -47,13 +50,38 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Share a song or album from a music app into today's journal -->
-            <intent-filter android:label="Add to journal">
+        </activity>
+
+        <!-- Two entries in the share sheet. A song or album from a music app goes into today's journal… -->
+        <activity-alias
+            android:name=".ShareToJournal"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="Add to journal">
+            <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <!-- …and a note from Samsung Notes (Share → Text file) or any app goes into the Notes tab -->
+        <activity-alias
+            android:name=".ShareToNotes"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="Save to notes">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Block Overlay Activity -->
         <activity
