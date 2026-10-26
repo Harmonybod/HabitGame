@@ -106,7 +106,7 @@ fun ProfileScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard("⭐", "${state.user.totalCoins}", "Total Coins", Modifier.weight(1f))
+                StatCard("⭐", "${state.user.totalCoinsEarned}", "Coins Earned", Modifier.weight(1f))
                 StatCard("🕐", "${"%.1f".format(state.totalFocusHours)}h", "Focus Time", Modifier.weight(1f))
             }
         }

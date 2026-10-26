@@ -74,6 +74,9 @@ fun DashboardScreen(
         com.habitgame.feature.tasks.EditTaskSheet(
             task = task,
             challengeEnd = state.challenge.endDate,
+            deadlineReminders = com.habitgame.domain.notification.ReminderTimes.describe(
+                com.habitgame.domain.notification.ReminderTimes.parse(state.user.deadlineReminderTimes)
+            ),
             onDismiss = { editing = null },
             onSave = { viewModel.updateTask(it); editing = null },
             onDelete = { viewModel.deleteTask(task); editing = null }
@@ -758,6 +761,16 @@ fun TaskRow(task: TaskEntity, onComplete: () -> Unit, onStartFocus: () -> Unit, 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DifficultyBadge(task.difficulty.name, diffColor)
                     Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                // Deadline: amber when less than an hour is left
+                if (!task.isCompleted) task.deadlineAt?.let { deadline ->
+                    val soon = deadline - System.currentTimeMillis() < 60 * 60_000L
+                    Text(
+                        (if (task.isShopping) "⏳ Buy " else "⏳ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
+                        color = if (soon) WarningAmber.readable() else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (soon) FontWeight.SemiBold else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
             if (task.hasFocusTimer && !task.isCompleted) {

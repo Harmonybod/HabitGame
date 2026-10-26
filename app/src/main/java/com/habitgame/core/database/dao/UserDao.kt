@@ -21,8 +21,15 @@ interface UserDao {
     @Query("UPDATE user SET currentXp = currentXp + :xp, totalTasksDone = totalTasksDone + 1 WHERE id = 1")
     suspend fun addXp(xp: Int)
 
-    @Query("UPDATE user SET totalCoins = totalCoins + :coins WHERE id = 1")
+    @Query("UPDATE user SET totalCoins = totalCoins + :coins, totalCoinsEarned = totalCoinsEarned + :coins WHERE id = 1")
     suspend fun addCoins(coins: Long)
+
+    @Query("UPDATE user SET totalTasksDone = totalTasksDone + 1 WHERE id = 1")
+    suspend fun countTaskDone()
+
+    /** Raises the all-time totals to at least these (never lowers them). */
+    @Query("UPDATE user SET totalTasksDone = MAX(totalTasksDone, :tasks), totalCoinsEarned = MAX(totalCoinsEarned, :coins) WHERE id = 1")
+    suspend fun raiseLifetimeTotals(tasks: Int, coins: Long)
 
     @Query("UPDATE user SET totalCoins = totalCoins - :coins WHERE id = 1 AND totalCoins >= :coins")
     suspend fun spendCoins(coins: Long): Int

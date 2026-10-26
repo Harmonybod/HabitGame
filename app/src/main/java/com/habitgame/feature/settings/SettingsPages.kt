@@ -273,7 +273,7 @@ private fun lastSeen(time: Long): String {
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
-/** When reminders come: any number of times before tasks and habits, and before shopping deadlines. */
+/** When reminders come: any number of times before tasks and habits, and before deadlines. */
 @Composable
 fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
@@ -309,13 +309,13 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
             }
         }
         item {
-            SettingsSectionHeader("🛒 Shopping deadlines")
+            SettingsSectionHeader("⏳ Deadlines")
             GameCard {
                 ReminderPicker(
-                    intro = "Remind me before a shopping item's deadline. Items not bought by then are removed.",
+                    intro = "Remind me before a task's or shopping item's deadline. Anything not done by then is removed.",
                     selected = state.user.deadlineReminderLeads,
                     choices = ReminderTimes.DEADLINE_CHOICES,
-                    footer = "Only for items you've given a deadline.",
+                    footer = "Only for tasks and items you've given a deadline.",
                     onToggle = viewModel::toggleDeadlineReminder
                 )
             }

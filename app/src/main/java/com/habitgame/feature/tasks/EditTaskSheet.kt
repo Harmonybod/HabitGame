@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.habitgame.core.database.entity.ActivityCategory
 import com.habitgame.core.database.entity.RepetitionType
+import com.habitgame.core.database.entity.TaskCategoryType
 import com.habitgame.core.database.entity.TaskEntity
 import com.habitgame.domain.notification.TaskReminderWorker
 import com.habitgame.domain.tracker.TaskTiming
@@ -33,6 +34,7 @@ private enum class RepeatMode(val label: String) { ONCE("Once"), REPEAT("Repeats
 fun EditTaskSheet(
     task: TaskEntity,
     challengeEnd: LocalDate?,
+    deadlineReminders: String = "1 h, 15 min and 5 min before",
     onDismiss: () -> Unit,
     onSave: (TaskEntity) -> Unit,
     onDelete: () -> Unit
@@ -45,8 +47,14 @@ fun EditTaskSheet(
     var endDate by remember(task.id) { mutableStateOf(rule.endDate) }
     var onceDate by remember(task.id) { mutableStateOf(TaskTiming.scheduledDate(task) ?: LocalDate.now()) }
     var amountText by remember(task.id) { mutableStateOf(if (task.savingAmount > 0) TaskReminderWorker.formatAmount(task.savingAmount) else "") }
+    var deadline by remember(task.id) { mutableStateOf(task.deadlineAt?.let { TaskTiming.localDateOf(it).atTime(TaskTiming.localTimeOf(it)) }) }
+    var focusMinutes by remember(task.id) { mutableIntStateOf(task.focusDurationMinutes) }
     var pickingDate by remember { mutableStateOf(false) }
     val isSavings = task.activityCategory == ActivityCategory.SAVINGS
+    // Only activities get a focus timer; savings are just ticked off
+    val canFocus = task.categoryType == TaskCategoryType.ACTIVITY && !isSavings
+    val deadlinePassed = mode == RepeatMode.ONCE && deadline != task.deadlineAt?.let { TaskTiming.localDateOf(it).atTime(TaskTiming.localTimeOf(it)) } &&
+        deadline?.isBefore(java.time.LocalDateTime.now()) == true
 
     if (pickingDate) {
         val state = rememberDatePickerState(initialSelectedDateMillis = onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
@@ -112,12 +120,21 @@ fun EditTaskSheet(
                 ) {
                     Text("📅 " + onceDate.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())), color = MaterialTheme.colorScheme.onSurface)
                 }
+                DeadlineField(
+                    deadline = deadline,
+                    onChange = { deadline = it },
+                    offText = "None: do it whenever you like",
+                    onText = "Not done by then? It's removed from your tasks.",
+                    reminderText = deadlineReminders
+                )
             }
+
+            if (canFocus) FocusSessionField(focusMinutes) { focusMinutes = it }
 
             EditorActions(
                 saveLabel = "Save changes",
                 onSave = {
-                    if (name.isBlank()) return@EditorActions
+                    if (name.isBlank() || deadlinePassed) return@EditorActions
                     val timeMillis = time?.let { TaskTiming.millisForTime(it) }
                     val repeating = mode == RepeatMode.REPEAT
                     onSave(
@@ -132,7 +149,9 @@ fun EditTaskSheet(
                             recurrenceDays = if (repeating) days.joinToString(",") else "",
                             repeatEndDate = if (repeating) endDate?.toString() else null,
                             scheduledDateMillis = if (repeating) null else onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                            savingAmount = if (isSavings) amountText.toDoubleOrNull() ?: 0.0 else task.savingAmount
+                            savingAmount = if (isSavings) amountText.toDoubleOrNull() ?: 0.0 else task.savingAmount,
+                            deadlineAt = if (repeating) null else deadline?.let { TaskTiming.millisOf(it) },
+                            focusDurationMinutes = if (canFocus) focusMinutes else task.focusDurationMinutes
                         )
                     )
                 },

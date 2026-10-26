@@ -57,9 +57,6 @@ private fun amountInput(text: String) = text.replace(',', '.').filter { it.isDig
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
-    var pickingDate by remember { mutableStateOf(false) }
-    var pickingTime by remember { mutableStateOf(false) }
-
     EditorLabel("💲 Price range (optional)")
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(
@@ -77,23 +74,48 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
     }
 
     // Deadline: none by default, so the item can be bought any time
+    DeadlineField(
+        deadline = form.deadline,
+        onChange = { form.deadline = it },
+        offText = "None: buy it whenever you like",
+        onText = "Not bought by then? It's removed from your list.",
+        reminderText = reminderText
+    )
+}
+
+/**
+ * A "⏳ Deadline" switch (off = no deadline) with a date and time once it's on. [onText] says what
+ * happens at the deadline; [reminderText] when the reminders come.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeadlineField(
+    deadline: LocalDateTime?,
+    onChange: (LocalDateTime?) -> Unit,
+    offText: String,
+    onText: String,
+    reminderText: String
+) {
+    var pickingDate by remember { mutableStateOf(false) }
+    var pickingTime by remember { mutableStateOf(false) }
+
     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("⏳ Deadline", color = MaterialTheme.colorScheme.onSurface)
             Text(
-                if (form.deadline == null) "None: buy it whenever you like" else "Not bought by then? It's removed from your list.",
+                if (deadline == null) offText else onText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
             )
         }
         Switch(
-            checked = form.deadline != null,
+            checked = deadline != null,
             onCheckedChange = { on ->
                 // Starts at tomorrow, at the next whole hour
-                form.deadline = if (on) LocalDateTime.now().plusDays(1).plusHours(1).withMinute(0).withSecond(0).withNano(0) else null
+                onChange(if (on) LocalDateTime.now().plusDays(1).plusHours(1).withMinute(0).withSecond(0).withNano(0) else null)
             }
         )
     }
-    form.deadline?.let { at ->
+    deadline?.let { at ->
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(
                 onClick = { pickingDate = true }, modifier = Modifier.weight(1f),
@@ -104,7 +126,7 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
                 shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) { Text("⏰ " + TaskTiming.formatTime(at.toLocalTime()), color = MaterialTheme.colorScheme.onSurface) }
         }
-        if (form.deadlinePassed) {
+        if (at.isBefore(LocalDateTime.now())) {
             Text("That time has already passed. Pick a later one.", color = DangerRed, style = MaterialTheme.typography.bodySmall)
         } else {
             Text("🔔 Reminders $reminderText.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
@@ -124,7 +146,7 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
                 confirmButton = {
                     TextButton(onClick = {
                         state.selectedDateMillis?.let {
-                            form.deadline = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().atTime(at.toLocalTime())
+                            onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().atTime(at.toLocalTime()))
                         }
                         pickingDate = false
                     }) { Text("OK") }
@@ -140,13 +162,39 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
                 title = { Text("Deadline time") },
                 text = { TimePicker(state = state) },
                 confirmButton = {
-                    TextButton(onClick = { form.deadline = at.toLocalDate().atTime(LocalTime.of(state.hour, state.minute)); pickingTime = false }) { Text("OK") }
+                    TextButton(onClick = { onChange(at.toLocalDate().atTime(LocalTime.of(state.hour, state.minute))); pickingTime = false }) { Text("OK") }
                 },
                 dismissButton = { TextButton(onClick = { pickingTime = false }) { Text("Cancel") } }
             )
         }
     }
 }
+
+/**
+ * The "🎯 Focus session" switch: whether the task gets a Start button that opens the focus timer,
+ * and for how many minutes ([minutes] 0 = off).
+ */
+@Composable
+fun FocusSessionField(minutes: Int, onChange: (Int) -> Unit) {
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("🎯 Focus session", color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                if (minutes > 0) "Start a focus timer from this task" else "Off: just tick it off when it's done",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Switch(checked = minutes > 0, onCheckedChange = { on -> onChange(if (on) DEFAULT_FOCUS_MINUTES else 0) })
+    }
+    if (minutes > 0) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (FOCUS_CHOICES + minutes).distinct().sorted().forEach { m -> ChoiceChip("$m min", minutes == m) { onChange(m) } }
+        }
+    }
+}
+
+const val DEFAULT_FOCUS_MINUTES = 25
+private val FOCUS_CHOICES = listOf(15, 25, 45, 60)
 
 /** Difficulty sets the XP and coins for buying the item. */
 @Composable

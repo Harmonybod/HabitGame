@@ -16,6 +16,8 @@ class UserRepository @Inject constructor(private val dao: UserDao) {
     suspend fun updateUser(user: UserEntity) = dao.updateUser(user)
     suspend fun addXp(xp: Int) = dao.addXp(xp)
     suspend fun addCoins(coins: Long) = dao.addCoins(coins)
+    suspend fun countTaskDone() = dao.countTaskDone()
+    suspend fun raiseLifetimeTotals(tasks: Int, coins: Long) = dao.raiseLifetimeTotals(tasks, coins)
     suspend fun spendCoins(coins: Long): Boolean = dao.spendCoins(coins) > 0
     suspend fun addFocusMinutes(minutes: Long) = dao.addFocusMinutes(minutes)
     // Phase 2

@@ -55,6 +55,14 @@ class CalendarEventsTest {
 
         // No day, no time: nothing to put in a calendar
         assertNull(CalendarEvents.forTask(TaskEntity(id = 2, name = "Someday"), listOf(5), emptyList(), zone))
+
+        // No day but a deadline: an event at the deadline, with the deadline reminders
+        val deadline = TaskTiming.millisOf(day.atTime(17, 0))
+        val due = CalendarEvents.forTask(TaskEntity(id = 3, name = "Report", deadlineAt = deadline), listOf(5), listOf(60, 15), zone)!!
+        assertEquals(deadline, due.start)
+        assertEquals("⏳ Deadline: Report", due.title)
+        assertEquals(listOf(60, 15), due.reminders)
+        assertNull(CalendarEvents.forTask(TaskEntity(id = 3, name = "Report", deadlineAt = deadline, isCompleted = true), listOf(5), listOf(60), zone))
     }
 
     @Test

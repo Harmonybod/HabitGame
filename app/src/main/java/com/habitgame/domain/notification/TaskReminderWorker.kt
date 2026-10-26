@@ -77,20 +77,20 @@ class TaskReminderWorker @AssistedInject constructor(
 
         /**
          * Schedule (or replace) the next reminders and nudge for a task: one reminder for each of
-         * [leads] (minutes before its time). Cancels them if it has no upcoming time. Shopping items
-         * get their deadline reminders instead, [deadlineLeads] minutes before the deadline.
+         * [leads] (minutes before its time). Cancels them if it has no upcoming time. A deadline gets
+         * its own reminders, [deadlineLeads] minutes before it; shopping items only have those.
          */
         fun schedule(context: Context, task: TaskEntity, leads: List<Int>, deadlineLeads: List<Int>) {
+            ShoppingDeadlineWorker.schedule(context, task, deadlineLeads)
             if (task.isShopping) {
                 cancelTimeReminders(context, task.id)
-                ShoppingDeadlineWorker.schedule(context, task, deadlineLeads)
                 return
             }
             val wm = WorkManager.getInstance(context)
             val now = LocalDateTime.now()
             val next = if (task.notifyEnabled) TaskTiming.nextOccurrence(task, now) else null
             if (next == null) {
-                cancelReminder(context, task.id)
+                cancelTimeReminders(context, task.id)
                 return
             }
             // Reminders whose time has already passed are skipped; if all have, one goes out now

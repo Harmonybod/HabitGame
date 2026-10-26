@@ -36,6 +36,7 @@ class TaskCompletionManager @Inject constructor(
         if (task.isCompleted) return null
 
         taskRepo.completeTask(task.id)
+        userRepo.countTaskDone()
         val streak = userRepo.getUser()?.currentStreak ?: 0
         val multiplier = streakManager.streakMultiplier(streak)
         val xpBase = EconomyManager.xpForDifficulty(task.difficulty)

@@ -14,4 +14,11 @@ interface CoinTransactionDao {
 
     @Query("SELECT SUM(CASE WHEN type = 'EARN' THEN amount ELSE -amount END) FROM coin_transactions")
     suspend fun getBalance(): Long?
+
+    /** Rewards paid for finishing tasks, each one a task done (TaskCompletionManager's "Completed: …"). */
+    @Query("SELECT COUNT(*) FROM coin_transactions WHERE type = 'EARN' AND reason LIKE 'Completed: %'")
+    suspend fun countTaskRewards(): Int
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM coin_transactions WHERE type = 'EARN'")
+    suspend fun totalEarned(): Long
 }

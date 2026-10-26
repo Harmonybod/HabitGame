@@ -27,7 +27,7 @@ import com.habitgame.core.database.entity.*
         XpLogEntity::class,
         NoteEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -98,6 +98,13 @@ abstract class AppDatabase : RoomDatabase() {
          * App Unlock time now counts only while locked apps are open, the XP graph gets a history
          * table (filled from what was already earned), and No Restriction Day costs 600.
          */
+        /** All-time coins earned, for the stats (the balance goes down when coins are spent). */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user ADD COLUMN totalCoinsEarned INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** The Notes tab: notes written in HabitGame or shared in from Samsung Notes and other apps. */
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {

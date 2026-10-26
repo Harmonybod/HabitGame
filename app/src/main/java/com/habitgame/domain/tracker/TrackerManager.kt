@@ -45,7 +45,7 @@ class TrackerManager @Inject constructor(
     suspend fun runDailyMaintenance() {
         userRepo.initUser()
         taskRepo.resetStaleRecurringTasks()
-        removeExpiredShopping()
+        removeExpired()
         ensureChallenge()
         rescheduleAllReminders()
         snapshotToday()
@@ -226,11 +226,11 @@ class TrackerManager @Inject constructor(
         HabitReminderWorker.schedule(context, habit, habitRepo.isHabitCompletedToday(habit.id), leads().first)
     }
 
-    /** Shopping items still not bought when their deadline passed (e.g. while the phone was off) are removed. */
-    suspend fun removeExpiredShopping() {
+    /** Tasks and shopping items still not done when their deadline passed (e.g. while the phone was off) are removed. */
+    suspend fun removeExpired() {
         val now = System.currentTimeMillis()
         taskRepo.getAllTasks()
-            .filter { it.isShopping && !it.isCompleted && (it.deadlineAt ?: Long.MAX_VALUE) <= now }
+            .filter { !it.isRecurring && !it.isCompleted && (it.deadlineAt ?: Long.MAX_VALUE) <= now }
             .forEach { task ->
                 taskRepo.deleteTask(task)
                 TaskReminderWorker.cancelReminder(context, task.id)

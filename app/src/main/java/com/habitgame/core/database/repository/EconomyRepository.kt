@@ -21,6 +21,9 @@ class EconomyRepository @Inject constructor(
 
     fun observeAllRewards(): Flow<List<RewardItemEntity>> = rewardDao.observeAllRewards()
 
+    suspend fun countTaskRewards(): Int = coinDao.countTaskRewards()
+    suspend fun totalCoinsEarned(): Long = coinDao.totalEarned()
+
     fun observeBySubcategory(subcategory: String): Flow<List<RewardItemEntity>> =
         rewardDao.observeBySubcategory(subcategory)
 

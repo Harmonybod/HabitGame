@@ -14,7 +14,7 @@ data class UserEntity(
     val longestStreak: Int = 0,
     val title: String = "Beginner",
     val lastActiveDate: String = "",      // ISO date YYYY-MM-DD
-    val totalTasksDone: Int = 0,
+    val totalTasksDone: Int = 0,          // All time: every task ever completed, even ones deleted since
     val totalFocusMinutes: Long = 0L,
     val selectedTheme: String = "default",
     val selectedBadge: String = "",
@@ -28,5 +28,7 @@ data class UserEntity(
     // Minutes before a task or habit to remind, e.g. "10,5,1" (see ReminderTimes)
     val reminderLeadTimes: String = "5",
     // Minutes before a shopping item's deadline to remind
-    val deadlineReminderTimes: String = "60,15,5"
+    val deadlineReminderTimes: String = "60,15,5",
+    // All the coins ever earned, for the stats (totalCoins is what's left to spend)
+    val totalCoinsEarned: Long = 0L
 )

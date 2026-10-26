@@ -52,6 +52,7 @@ fun TasksScreen(
         EditTaskSheet(
             task = task,
             challengeEnd = challengeEnd,
+            deadlineReminders = deadlineReminders,
             onDismiss = { editing = null },
             onSave = { viewModel.updateTask(it); editing = null },
             onDelete = { viewModel.deleteTask(task); editing = null }
@@ -178,11 +179,11 @@ fun TaskListItem(task: TaskEntity, currency: String = "", onComplete: () -> Unit
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                 }
-                // Shopping deadline: amber when less than an hour is left
-                if (task.isShopping && !task.isCompleted) task.deadlineAt?.let { deadline ->
+                // Deadline: amber when less than an hour is left
+                if (!task.isCompleted) task.deadlineAt?.let { deadline ->
                     val soon = deadline - System.currentTimeMillis() < 60 * 60_000L
                     Text(
-                        "⏳ Buy " + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
+                        (if (task.isShopping) "⏳ Buy " else "⏳ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
                         color = if (soon) WarningAmber.readable() else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (soon) FontWeight.SemiBold else FontWeight.Normal,
                         style = MaterialTheme.typography.labelSmall
@@ -250,6 +251,10 @@ fun AddTaskBottomSheet(
     val challengeEnd by tasksViewModel.challengeEnd.collectAsState()
     var repeatDays by remember { mutableStateOf(emptySet<String>()) }
     var repeatEnd by remember { mutableStateOf<java.time.LocalDate?>(null) }
+    // Off by default: no deadline, and every activity except meals gets a focus timer
+    var deadline by remember { mutableStateOf<java.time.LocalDateTime?>(null) }
+    var focusMinutes by remember { mutableIntStateOf(DEFAULT_FOCUS_MINUTES) }
+    val deadlinePassed = !shopping && repetition == RepetitionType.ONE_TIME && deadline?.isBefore(java.time.LocalDateTime.now()) == true
 
     // Date picker dialog
     if (showDatePicker) {
@@ -412,7 +417,8 @@ fun AddTaskBottomSheet(
                     val mainCategories = listOf(ActivityCategory.STUDY, ActivityCategory.GYM, ActivityCategory.WORK, ActivityCategory.CODING, ActivityCategory.READING, ActivityCategory.MEDITATION, ActivityCategory.MEAL, ActivityCategory.OTHER)
                     items(mainCategories) { cat ->
                         FilterChip(
-                            selected = activityCategory == cat, onClick = { activityCategory = cat },
+                            selected = activityCategory == cat,
+                            onClick = { activityCategory = cat; if (cat == ActivityCategory.MEAL) focusMinutes = 0 },
                             label = { Text("${activityIcon(cat)} ${cat.name}", style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.secondary.copy(0.8f),
@@ -423,6 +429,7 @@ fun AddTaskBottomSheet(
                         )
                     }
                 }
+                FocusSessionField(focusMinutes) { focusMinutes = it }
             } else if (categoryType == TaskCategoryType.LOCATION) {
                 Text("Map Location", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                 OutlinedButton(
@@ -515,6 +522,16 @@ fun AddTaskBottomSheet(
                 }
             }
 
+            if (!shopping && repetition == RepetitionType.ONE_TIME) {
+                DeadlineField(
+                    deadline = deadline,
+                    onChange = { deadline = it },
+                    offText = "None: do it whenever you like",
+                    onText = "Not done by then? It's removed from your tasks.",
+                    reminderText = deadlineReminders
+                )
+            }
+
             Button(
                 onClick = {
                     if (shopping && name.isNotBlank() && !shoppingForm.deadlinePassed) {
@@ -529,7 +546,7 @@ fun AddTaskBottomSheet(
                                 )
                             )
                         )
-                    } else if (name.isNotBlank() && !shopping) {
+                    } else if (name.isNotBlank() && !shopping && !deadlinePassed) {
                         val xp = com.habitgame.domain.engine.EconomyManager.xpForDifficulty(difficulty)
                         val coins = com.habitgame.domain.engine.EconomyManager.coinsForDifficulty(difficulty)
                         val timeMillis = if (!isAllDay) {
@@ -552,8 +569,8 @@ fun AddTaskBottomSheet(
                             notifyEnabled = timeMillis != null,
                             notifyAtMillis = timeMillis,
                             locationZoneId = if (categoryType == TaskCategoryType.LOCATION) selectedLocationZoneId else null,
-                            // Meals are just ticked off; other activities keep the focus timer
-                            focusDurationMinutes = if (activityCategory == ActivityCategory.MEAL) 0 else 25
+                            focusDurationMinutes = if (categoryType == TaskCategoryType.ACTIVITY) focusMinutes else 0,
+                            deadlineAt = if (repetition == RepetitionType.ONE_TIME) deadline?.let { com.habitgame.domain.tracker.TaskTiming.millisOf(it) } else null
                         ))
                     }
                 },

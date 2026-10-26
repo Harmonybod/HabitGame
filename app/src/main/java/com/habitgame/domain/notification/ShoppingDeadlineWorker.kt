@@ -19,8 +19,9 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 
 /**
- * Shopping items with a deadline: reminders before it (1 h, 15 min and 5 min by default, set in
- * Settings → Notifications), and at the deadline the item is removed if it still isn't bought.
+ * Shopping items and one-time tasks with a deadline: reminders before it (1 h, 15 min and 5 min by
+ * default, set in Settings → Notifications), and at the deadline it's removed if it still isn't done.
+ * (Named for shopping, where deadlines started; the name stays so already-scheduled work still runs.)
  */
 @HiltWorker
 class ShoppingDeadlineWorker @AssistedInject constructor(
@@ -32,7 +33,7 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val task = taskRepo.getTaskById(inputData.getLong(KEY_TASK_ID, -1L)) ?: return Result.success()
         val deadline = task.deadlineAt ?: return Result.success()
-        if (task.isCompleted || !task.isShopping) return Result.success()
+        if (task.isCompleted || task.isRecurring) return Result.success()
         val now = System.currentTimeMillis()
 
         if (inputData.getBoolean(KEY_EXPIRE, false)) {
@@ -60,7 +61,7 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
         /** Schedules (or replaces) the reminders and removal for [task]; cancels them once it's bought or has no deadline. */
         fun schedule(context: Context, task: TaskEntity, leads: List<Int>) {
             val deadline = task.deadlineAt
-            if (task.isCompleted || deadline == null) {
+            if (task.isCompleted || task.isRecurring || deadline == null) {
                 cancel(context, task.id)
                 return
             }
@@ -114,7 +115,11 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
         private fun notifyDue(context: Context, task: TaskEntity, left: Long) {
             if (!canNotify(context)) return
             val deadline = TaskTiming.formatTime(TaskTiming.localTimeOf(task.deadlineAt!!))
-            val text = "Buy it by $deadline, or it's removed from your list. Tap Bought ✓ when you have it to earn ${task.xpReward} XP."
+            val text = if (task.isShopping) {
+                "Buy it by $deadline, or it's removed from your list. Tap Bought ✓ when you have it to earn ${task.xpReward} XP."
+            } else {
+                "Finish it by $deadline, or it's removed from your tasks. Tap Done ✓ when it's finished to earn ${task.xpReward} XP."
+            }
             val bought = PendingIntent.getBroadcast(
                 context, notificationId(task.id, false),
                 Intent(context, TaskActionReceiver::class.java)
@@ -124,13 +129,13 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
             )
             val notification = NotificationCompat.Builder(context, TaskReminderWorker.CHANNEL_TASKS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("🛒 ${task.name} · ${timeLeft(left)} left")
+                .setContentTitle("${if (task.isShopping) "🛒" else "⏳"} ${task.name} · ${timeLeft(left)} left")
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setContentIntent(openApp(context, notificationId(task.id, false)))
-                .addAction(android.R.drawable.checkbox_on_background, "Bought ✓", bought)
+                .addAction(android.R.drawable.checkbox_on_background, if (task.isShopping) "Bought ✓" else "Done ✓", bought)
                 .setAutoCancel(true)
                 .build()
             NotificationManagerCompat.from(context).notify(notificationId(task.id, false), notification)
@@ -141,7 +146,7 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
             val notification = NotificationCompat.Builder(context, TaskReminderWorker.CHANNEL_TASKS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
                 .setContentTitle("⌛ ${task.name} was removed")
-                .setContentText("Its deadline passed before it was bought.")
+                .setContentText(if (task.isShopping) "Its deadline passed before it was bought." else "Its deadline passed before it was done.")
                 .setContentIntent(openApp(context, notificationId(task.id, true)))
                 .setAutoCancel(true)
                 .build()

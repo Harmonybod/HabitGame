@@ -67,7 +67,12 @@ object CalendarEvents {
                 EventSpec(key, task.name, describe(task.description, key), first.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), 24 * 60, allDay = true, rrule = rrule(rule, zone, null))
             }
         }
-        val date = TaskTiming.assignedDate(task) ?: return null
+        val date = TaskTiming.assignedDate(task) ?: run {
+            // No day of its own: its deadline, if it has one
+            val deadline = task.deadlineAt ?: return null
+            if (task.isCompleted) return null
+            return EventSpec(key, "⏳ Deadline: ${task.name}", describe("Not done by then? It's removed from your HabitGame tasks.", key), deadline, 15, reminders = deadlineReminders)
+        }
         val done = task.isCompleted
         val title = (if (done) "✅ " else "") + task.name
         return if (time != null) {

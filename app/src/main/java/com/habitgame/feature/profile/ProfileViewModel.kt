@@ -14,6 +14,7 @@ import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.habitgame.core.database.entity.UserEntity
+import com.habitgame.core.database.repository.EconomyRepository
 import com.habitgame.core.database.repository.FocusSessionRepository
 import com.habitgame.core.database.repository.TaskRepository
 import com.habitgame.core.database.repository.UserRepository
@@ -40,6 +41,7 @@ class ProfileViewModel @Inject constructor(
     private val userRepo: UserRepository,
     private val taskRepo: TaskRepository,
     private val sessionRepo: FocusSessionRepository,
+    private val economyRepo: EconomyRepository,
     private val progressEngine: UserProgressEngine,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -49,7 +51,7 @@ class ProfileViewModel @Inject constructor(
             val u = user ?: UserEntity()
             val sessionCount = sessionRepo.getCompletedSessionCount()
             val focusSeconds = sessionRepo.getTotalFocusSeconds()
-            val tasksDone = taskRepo.getCompletedTaskCount()
+            val tasksDone = u.totalTasksDone
             ProfileUiState(
                 user = u,
                 xpProgress = progressEngine.progressFraction(u),
@@ -61,6 +63,18 @@ class ProfileViewModel @Inject constructor(
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileUiState())
+
+    init {
+        // Tasks and coins from before the all-time totals were kept: one coin reward per task
+        // finished, and every coin earned. Never lowers what's already counted.
+        viewModelScope.launch {
+            val user = userRepo.getUser() ?: return@launch
+            userRepo.raiseLifetimeTotals(
+                tasks = maxOf(taskRepo.getCompletedTaskCount(), economyRepo.countTaskRewards()),
+                coins = maxOf(economyRepo.totalCoinsEarned(), user.totalCoins)
+            )
+        }
+    }
 
     /**
      * Copies the picked photo into the app's private storage (shrunk to 512px, upright),
@@ -134,8 +148,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun buildBadgeList(user: UserEntity, tasks: Int, sessions: Int): List<Badge> = listOf(
-        Badge("🔥", "On Fire", "Reach a 7-day streak", user.currentStreak >= 7),
-        Badge("💎", "Diamond Streak", "Reach a 30-day streak", user.currentStreak >= 30),
+        // Best streak, so a badge stays earned after a streak ends
+        Badge("🔥", "On Fire", "Reach a 7-day streak", user.longestStreak >= 7),
+        Badge("💎", "Diamond Streak", "Reach a 30-day streak", user.longestStreak >= 30),
         Badge("⚡", "Focused Mind", "Complete 10 focus sessions", sessions >= 10),
         Badge("🏆", "Century Club", "Complete 100 tasks", tasks >= 100),
         Badge("🎯", "Task Master", "Complete 50 tasks", tasks >= 50),
