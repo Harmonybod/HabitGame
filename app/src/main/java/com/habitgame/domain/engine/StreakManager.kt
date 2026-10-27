@@ -10,7 +10,8 @@ class StreakManager @Inject constructor(
     private val streakDayDao: com.habitgame.core.database.dao.StreakDayDao,
     private val userRepo: UserRepository,
     private val economyManager: EconomyManager,
-    private val boosterManager: BoosterManager
+    private val boosterManager: BoosterManager,
+    private val rewardManager: RewardManager
 ) {
     private fun today(): String = java.time.LocalDate.now().toString()
 
@@ -44,12 +45,8 @@ class StreakManager @Inject constructor(
         checkMilestoneReward(streak)
     }
 
-    private suspend fun checkMilestoneReward(streak: Int) {
-        val milestones = mapOf(7 to 200L, 14 to 350L, 30 to 700L, 60 to 1500L, 100 to 3000L)
-        milestones[streak]?.let { bonus ->
-            economyManager.earnCoins(bonus, "🔥 Streak milestone: $streak days!")
-        }
-    }
+    /** 50 coins at 5 days, then 100 every 5 days (paid once, however often the streak is counted). */
+    private suspend fun checkMilestoneReward(streak: Int) = rewardManager.streakReached(streak)
 
     suspend fun freezeStreak(): Boolean {
         val freezeCost = 180L

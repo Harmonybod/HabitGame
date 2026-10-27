@@ -25,5 +25,6 @@ data class RewardItemEntity(
     val badgeKey: String = "",          // e.g. "🔥", "🏅", "💎" — equips to profile on purchase
     val themeKey: String = "",          // e.g. "neon", "midnight" — unlocks in Settings
     val iconPackKey: String = "",       // e.g. "retro", "elite" — unlocks in Settings
-    val isLocked: Boolean = false       // For themes/icon packs: locked until purchased
+    val isLocked: Boolean = false,      // For themes/icon packs: locked until purchased
+    val extendedMinutes: Int = 0        // Extra time bought while it runs (No Restriction Day's +5 h)
 )

@@ -50,6 +50,7 @@ fun DashboardScreen(
     onNavigateCalendar: () -> Unit = {},
     onNavigateProfile: () -> Unit = {},
     onNavigateSettings: () -> Unit = {},
+    onNavigateLevels: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -83,22 +84,13 @@ fun DashboardScreen(
         )
     }
 
-    // Level up dialog
-    if (state.showLevelUpDialog) {
-        LevelUpDialog(
-            level = state.levelUpLevel,
-            title = state.levelUpTitle,
-            isTierChange = state.isTierChange
-        ) {
-            viewModel.dismissLevelUp()
-        }
-    }
-
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+        // Room at the bottom so the calendar button doesn't cover the last card
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header with profile avatar
@@ -137,6 +129,8 @@ fun DashboardScreen(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val now = rememberNow()
+                    state.sessions.filter { it.item.boosterEffect.isNotEmpty() && !it.isFinished(now) }.forEach { BoosterChip(it, now) }
                     StreakChip(state.user.currentStreak)
                     CoinBalanceChip(state.user.totalCoins)
                     IconButton(onClick = onNavigateSettings) {
@@ -194,7 +188,7 @@ fun DashboardScreen(
                 LaunchedEffect(finishedCount) {
                     if (finishedCount > 0) viewModel.endFinishedSessions()
                 }
-                ActiveSessionsCard(state.sessions.filter { !it.isFinished(now) }, now)
+                ActiveSessionsCard(state.sessions.filter { !it.isFinished(now) }, now, onExtend = viewModel::extendSession)
             }
         }
 
@@ -223,9 +217,9 @@ fun DashboardScreen(
             }
         }
 
-        // XP Bar
+        // XP Bar: tap for every level and its shield
         item {
-            GameCard {
+            GameCard(Modifier.clickable(onClickLabel = "See all levels", onClick = onNavigateLevels)) {
                 XpProgressBar(
                     level = state.user.level,
                     title = state.user.title,
@@ -233,28 +227,6 @@ fun DashboardScreen(
                     currentXp = state.user.currentXp,
                     xpRequired = state.xpRequired
                 )
-            }
-        }
-
-        // Stats row
-        item {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StreakBadge(state.user.currentStreak, Modifier.weight(1f))
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(20.dp))
-                        .cardSurface(RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    com.habitgame.ui.PackEmoji("⚡", 20.dp)
-                    Text("Combo ×${state.comboCount % 3 + 1}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp)
-                }
             }
         }
 
@@ -270,17 +242,6 @@ fun DashboardScreen(
                     AppIcon("Timer", contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Focus", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                OutlinedButton(
-                    onClick = onNavigateCalendar,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.5f)),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    AppIcon("CalendarMonth", contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Calendar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
@@ -385,6 +346,18 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    // Calendar: a day's tasks and habits
+    FloatingActionButton(
+        onClick = onNavigateCalendar,
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 20.dp)
+    ) {
+        AppIcon("CalendarMonth", contentDescription = "Calendar", modifier = Modifier.size(26.dp))
+    }
     }
 }
 

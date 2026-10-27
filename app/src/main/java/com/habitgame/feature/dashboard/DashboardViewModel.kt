@@ -101,6 +101,14 @@ class DashboardViewModel @Inject constructor(
     }
 
     /** Called by the screen when a countdown reaches zero. */
+    /** 5 more hours of a No Restriction Day that's nearly over, for 50 coins. */
+    fun extendSession(session: com.habitgame.domain.engine.ActiveSession) {
+        viewModelScope.launch {
+            val message = com.habitgame.domain.notification.SessionEndWorker.extend(context, economyManager, boosterManager, session)
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun endFinishedSessions() {
         viewModelScope.launch {
             com.habitgame.domain.notification.SessionEndWorker.notifyEnded(context, boosterManager.endFinishedSessions())

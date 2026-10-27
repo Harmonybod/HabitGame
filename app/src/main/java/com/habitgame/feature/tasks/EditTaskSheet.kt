@@ -41,6 +41,9 @@ fun EditTaskSheet(
 ) {
     val rule = remember(task.id) { TaskTiming.repeatRule(task) }
     var name by remember(task.id) { mutableStateOf(task.name) }
+    var description by remember(task.id) { mutableStateOf(task.description) }
+    // A one-time task with no due date can be done any day
+    var hasDueDate by remember(task.id) { mutableStateOf(TaskTiming.assignedDate(task) != null) }
     var time by remember(task.id) { mutableStateOf(TaskTiming.timeOfDay(task)) }
     var mode by remember(task.id) { mutableStateOf(if (task.isRecurring) RepeatMode.REPEAT else RepeatMode.ONCE) }
     var days by remember(task.id) { mutableStateOf(rule.days) }
@@ -86,6 +89,7 @@ fun EditTaskSheet(
                 modifier = Modifier.fillMaxWidth(),
                 colors = fieldColors()
             )
+            DescriptionField(description) { description = it }
 
             if (isSavings) {
                 OutlinedTextField(
@@ -99,9 +103,6 @@ fun EditTaskSheet(
                 )
             }
 
-            EditorLabel("⏰ Time")
-            TimeEditor(time = time, onTimeChange = { time = it })
-
             EditorLabel("🔁 Repeat")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RepeatMode.entries.forEach { m -> ChoiceChip(m.label, mode == m) { mode = m } }
@@ -111,14 +112,25 @@ fun EditTaskSheet(
                 RepeatDaysEditor(days = days, onDaysChange = { days = it })
                 EditorLabel("How long")
                 RepeatEndEditor(endDate = endDate, challengeEnd = challengeEnd, onEndChange = { endDate = it })
+                EditorLabel("⏰ Time")
+                TimeEditor(time = time, onTimeChange = { time = it })
             } else {
-                OutlinedButton(
-                    onClick = { pickingDate = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text("📅 " + onceDate.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())), color = MaterialTheme.colorScheme.onSurface)
+                SwitchRow(
+                    "📅 Due date",
+                    if (hasDueDate) "Planned for this day; it counts on the 100-day board" else "None: do it any day you like",
+                    hasDueDate
+                ) { hasDueDate = it }
+                if (hasDueDate) {
+                    OutlinedButton(
+                        onClick = { pickingDate = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Text("📅 " + onceDate.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())), color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    EditorLabel("⏰ Time")
+                    TimeEditor(time = time, onTimeChange = { time = it })
                 }
                 DeadlineField(
                     deadline = deadline,
@@ -135,20 +147,24 @@ fun EditTaskSheet(
                 saveLabel = "Save changes",
                 onSave = {
                     if (name.isBlank() || deadlinePassed) return@EditorActions
-                    val timeMillis = time?.let { TaskTiming.millisForTime(it) }
                     val repeating = mode == RepeatMode.REPEAT
+                    // No due date: no day and no time
+                    val dated = repeating || hasDueDate
+                    val chosenTime = if (dated) time else null
+                    val timeMillis = chosenTime?.let { TaskTiming.millisForTime(it) }
                     onSave(
                         task.copy(
                             name = name.trim(),
-                            isAllDay = time == null,
+                            description = description.trim(),
+                            isAllDay = chosenTime == null,
                             scheduledTimeMillis = timeMillis,
-                            notifyEnabled = time != null,
+                            notifyEnabled = chosenTime != null,
                             notifyAtMillis = timeMillis,
                             repetition = if (repeating) RepetitionType.REPEATING else RepetitionType.ONE_TIME,
                             isRecurring = repeating,
                             recurrenceDays = if (repeating) days.joinToString(",") else "",
                             repeatEndDate = if (repeating) endDate?.toString() else null,
-                            scheduledDateMillis = if (repeating) null else onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                            scheduledDateMillis = if (repeating || !hasDueDate) null else onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
                             savingAmount = if (isSavings) amountText.toDoubleOrNull() ?: 0.0 else task.savingAmount,
                             deadlineAt = if (repeating) null else deadline?.let { TaskTiming.millisOf(it) },
                             focusDurationMinutes = if (canFocus) focusMinutes else task.focusDurationMinutes

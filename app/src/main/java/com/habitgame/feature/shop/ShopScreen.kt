@@ -158,7 +158,8 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel()) {
                         onBuy = { viewModel.purchase(item) },
                         onActivate = { viewModel.activateReward(item) },
                         onApply = { viewModel.applyCosmetic(item) },
-                        onRemove = { viewModel.resetCosmetic(item) }
+                        onRemove = { viewModel.resetCosmetic(item) },
+                        onExtend = viewModel::extendSession
                     )
                 }
             }
@@ -201,7 +202,8 @@ fun ShopItemCard(
     onBuy: () -> Unit,
     onActivate: () -> Unit,
     onApply: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onExtend: ((ActiveSession) -> Unit)? = null
 ) {
     val canAfford = user.totalCoins >= item.cost
     val isCosmeticPack = item.themeKey.isNotEmpty() || item.iconPackKey.isNotEmpty() || item.badgeKey.isNotEmpty()
@@ -242,7 +244,7 @@ fun ShopItemCard(
                 // Live countdown while it runs
                 if (session != null) {
                     Spacer(Modifier.height(8.dp))
-                    SessionCountdown(session, now)
+                    SessionCountdown(session, now, onExtend = onExtend)
                 }
             }
             when {

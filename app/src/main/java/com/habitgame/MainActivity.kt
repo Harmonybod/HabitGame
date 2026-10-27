@@ -123,11 +123,15 @@ class MainActivity : ComponentActivity() {
                         androidx.compose.runtime.CompositionLocalProvider(
                             LocalIconPack provides settingsState.user.selectedIconPack
                         ) {
-                            HabitGameContent(
-                                iconPack = settingsState.user.selectedIconPack,
-                                openLockSetup = openLockSetup,
-                                onLockSetupOpened = { openLockSetup = false }
-                            )
+                            Box(Modifier.fillMaxSize()) {
+                                HabitGameContent(
+                                    iconPack = settingsState.user.selectedIconPack,
+                                    openLockSetup = openLockSetup,
+                                    onLockSetupOpened = { openLockSetup = false }
+                                )
+                                // Bonus coins earned anywhere in the app are celebrated on top
+                                com.habitgame.ui.components.CelebrationHost()
+                            }
                         }
                     }
                 }

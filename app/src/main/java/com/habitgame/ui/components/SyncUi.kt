@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.habitgame.ui.theme.readable
 import com.habitgame.domain.sync.CloudSync
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -63,6 +64,18 @@ fun GoogleSignInButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier
     }
 }
 
+/** Under the sign-in button: what connecting Google pays. */
+@Composable
+fun SignInBonusNote(modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        com.habitgame.ui.PackEmoji("🪙", 20.dp)
+        Text(
+            "Get ${com.habitgame.domain.engine.RewardManager.SIGN_IN_COINS} coins the first time you connect your Google account",
+            color = com.habitgame.ui.theme.GoldCoin.readable(), fontWeight = FontWeight.SemiBold, fontSize = 13.sp
+        )
+    }
+}
+
 /** The Google account card: sign in, or who's signed in and whether progress is saved. */
 @Composable
 fun SyncSection(showSignOut: Boolean = true) {
@@ -95,6 +108,7 @@ fun SyncSection(showSignOut: Boolean = true) {
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+                SignInBonusNote()
             }
             else -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,6 +184,8 @@ fun SignInStep(onDone: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.height(12.dp))
+        SignInBonusNote()
         message?.let {
             Spacer(Modifier.height(10.dp))
             Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, textAlign = TextAlign.Center)

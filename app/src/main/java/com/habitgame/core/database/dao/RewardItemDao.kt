@@ -25,15 +25,18 @@ interface RewardItemDao {
     @Query("UPDATE reward_items SET isOwned = 1, isLocked = 0 WHERE id = :id")
     suspend fun markOwned(id: Long)
 
-    @Query("UPDATE reward_items SET isActive = 1, activatedAt = :activatedAt, usedMillis = 0 WHERE id = :id")
+    @Query("UPDATE reward_items SET isActive = 1, activatedAt = :activatedAt, usedMillis = 0, extendedMinutes = 0 WHERE id = :id")
     suspend fun activateReward(id: Long, activatedAt: Long = System.currentTimeMillis())
 
     @Query("UPDATE reward_items SET isActive = 0 WHERE id = :id")
     suspend fun deactivateReward(id: Long)
 
     /** Timed unlocks are used up when bought, so they can be bought again. */
-    @Query("UPDATE reward_items SET isOwned = 0, isActive = 0, usedMillis = 0 WHERE id = :id")
+    @Query("UPDATE reward_items SET isOwned = 0, isActive = 0, usedMillis = 0, extendedMinutes = 0 WHERE id = :id")
     suspend fun consumeReward(id: Long)
+
+    @Query("UPDATE reward_items SET extendedMinutes = extendedMinutes + :minutes WHERE id = :id AND isActive = 1")
+    suspend fun extend(id: Long, minutes: Int): Int
 
     /** Counts time spent in locked apps against an App Unlock / Entertainment purchase. */
     @Query("UPDATE reward_items SET usedMillis = usedMillis + :millis WHERE id = :id")

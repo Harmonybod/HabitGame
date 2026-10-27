@@ -75,7 +75,8 @@ data class SyncState(
 class CloudSync @Inject constructor(
     @ApplicationContext private val context: Context,
     private val transfer: ProgressTransfer,
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val rewardManager: com.habitgame.domain.engine.RewardManager
 ) {
     private val _state = MutableStateFlow(SyncState())
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -264,7 +265,10 @@ class CloudSync @Inject constructor(
             // The server confirms the account has no progress yet: this phone's progress becomes the cloud copy
             ready = true
             syncedUid = uid
-            scope.launch { upload(force = true) }
+            scope.launch {
+                rewardManager.signedIn()
+                upload(force = true)
+            }
             return@withLock
         }
         val savedAt = snapshot.getLong("updatedAt") ?: 0L
@@ -281,6 +285,12 @@ class CloudSync @Inject constructor(
             applyRemote(cloud, savedAt)
             syncedUid = uid
             ready = true
+            // Once the account's progress has settled in, so the bonus is saved on top of it
+            // (paid only if this account hasn't had it before)
+            scope.launch {
+                delay(3_000)
+                rewardManager.signedIn()
+            }
             return@withLock
         }
 
@@ -355,7 +365,7 @@ class CloudSync @Inject constructor(
         /** Everything a transfer code carries. */
         private val SYNCED_TABLES = arrayOf(
             "user", "tasks", "habits", "habit_completions", "streak_days", "location_zones", "day_progress",
-            "journal_entries", "savings_entries", "xp_log", "challenge", "reward_items", "focus_sessions", "notes"
+            "journal_entries", "savings_entries", "xp_log", "challenge", "reward_items", "focus_sessions", "notes", "reward_claims"
         )
     }
 }

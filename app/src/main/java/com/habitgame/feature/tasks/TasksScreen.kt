@@ -157,6 +157,12 @@ fun TaskListItem(task: TaskEntity, currency: String = "", onComplete: () -> Unit
             }
             Column(Modifier.weight(1f)) {
                 Text(task.name, color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                if (task.description.isNotBlank()) {
+                    Text(
+                        task.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     DifficultyBadge(task.difficulty.name, diffColor)
                     if (task.isShopping) {
@@ -227,6 +233,9 @@ fun AddTaskBottomSheet(
     onAdd: (TaskEntity) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    // Off: a one-time task with no day, done whenever (it then doesn't count on the 100-day board)
+    var hasDueDate by remember { mutableStateOf(false) }
     var difficulty by remember { mutableStateOf(Difficulty.MEDIUM) }
     var repetition by remember { mutableStateOf(RepetitionType.ONE_TIME) }
     var categoryType by remember { mutableStateOf(if (startAsShopping) TaskCategoryType.SHOPPING else TaskCategoryType.ACTIVITY) }
@@ -331,6 +340,7 @@ fun AddTaskBottomSheet(
                     cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
+            if (!shopping) DescriptionField(description) { description = it }
 
             // Difficulty
             Text("Difficulty", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
@@ -475,9 +485,15 @@ fun AddTaskBottomSheet(
                 ShoppingFields(shoppingForm, currency, deadlineReminders)
             }
 
-            // Date picker
-            if (!shopping) Text("📅 Date", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-            if (!shopping) OutlinedButton(
+            // Due date (one-time tasks): off means any day; on gives it a day and, if wanted, a time
+            val oneTime = repetition == RepetitionType.ONE_TIME
+            val showTime = !shopping && (!oneTime || hasDueDate)
+            if (!shopping && oneTime) SwitchRow(
+                "📅 Due date",
+                if (hasDueDate) "Planned for this day; it counts on the 100-day board" else "None: do it any day you like",
+                hasDueDate
+            ) { hasDueDate = it }
+            if (!shopping && oneTime && hasDueDate) OutlinedButton(
                 onClick = { showDatePicker = true },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
@@ -487,13 +503,13 @@ fun AddTaskBottomSheet(
                     text = if (selectedDateMillis != null) {
                         val cal = java.util.Calendar.getInstance().apply { timeInMillis = selectedDateMillis!! }
                         "${cal.get(java.util.Calendar.DAY_OF_MONTH)}/${cal.get(java.util.Calendar.MONTH) + 1}/${cal.get(java.util.Calendar.YEAR)}"
-                    } else "Select Date",
+                    } else "📅 Today",
                     color = if (selectedDateMillis != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             // All-day toggle
-            if (!shopping) Row(verticalAlignment = Alignment.CenterVertically) {
+            if (showTime) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("All day", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                 Switch(
                     checked = isAllDay, onCheckedChange = { isAllDay = it },
@@ -507,7 +523,7 @@ fun AddTaskBottomSheet(
             }
 
             // Time picker (only when NOT all-day)
-            if (!isAllDay && !shopping) {
+            if (!isAllDay && showTime) {
                 Text("⏰ Time", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                 OutlinedButton(
                     onClick = { showTimePicker = true },
@@ -549,7 +565,8 @@ fun AddTaskBottomSheet(
                     } else if (name.isNotBlank() && !shopping && !deadlinePassed) {
                         val xp = com.habitgame.domain.engine.EconomyManager.xpForDifficulty(difficulty)
                         val coins = com.habitgame.domain.engine.EconomyManager.coinsForDifficulty(difficulty)
-                        val timeMillis = if (!isAllDay) {
+                        val dated = repetition == RepetitionType.REPEATING || hasDueDate
+                        val timeMillis = if (!isAllDay && dated) {
                             val cal = java.util.Calendar.getInstance().apply {
                                 set(java.util.Calendar.HOUR_OF_DAY, selectedHour)
                                 set(java.util.Calendar.MINUTE, selectedMinute)
@@ -560,11 +577,15 @@ fun AddTaskBottomSheet(
                         onAdd(TaskEntity(
                             name = name.trim(), difficulty = difficulty, repetition = repetition,
                             categoryType = categoryType, activityCategory = activityCategory,
-                            isAllDay = isAllDay, isRecurring = repetition == RepetitionType.REPEATING,
+                            description = description.trim(),
+                            isAllDay = timeMillis == null, isRecurring = repetition == RepetitionType.REPEATING,
                             recurrenceDays = if (repetition == RepetitionType.REPEATING) repeatDays.joinToString(",") else "",
                             repeatEndDate = if (repetition == RepetitionType.REPEATING) repeatEnd?.toString() else null,
                             xpReward = xp, coinReward = coins.toInt(),
-                            scheduledDateMillis = selectedDateMillis,
+                            // Due date on without one picked: today
+                            scheduledDateMillis = if (repetition == RepetitionType.ONE_TIME && hasDueDate)
+                                selectedDateMillis ?: java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                            else null,
                             scheduledTimeMillis = timeMillis,
                             notifyEnabled = timeMillis != null,
                             notifyAtMillis = timeMillis,

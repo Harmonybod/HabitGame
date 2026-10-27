@@ -58,7 +58,15 @@ class BoosterManager @Inject constructor(
 
         /** How long a timed item lasts. Items without a duration (Streak Freeze) last a day. */
         fun durationMillis(item: RewardItemEntity): Long =
-            if (item.durationMinutes > 0) item.durationMinutes * 60_000L else DAY_MILLIS
+            (if (item.durationMinutes > 0) item.durationMinutes * 60_000L else DAY_MILLIS) + item.extendedMinutes * 60_000L
+
+        /** No Restriction Day can be stretched by 5 hours for 50 coins, once it's in its last [EXTEND_OFFER_MILLIS]. */
+        const val EXTEND_MINUTES = 5 * 60
+        const val EXTEND_COST = 50L
+        const val EXTEND_OFFER_MILLIS = 2 * 60 * 60_000L
+
+        fun canExtend(session: ActiveSession, now: Long = System.currentTimeMillis()): Boolean =
+            session.item.boosterEffect == NO_RESTRICTION && !session.isFinished(now) && session.remainingMillis(now) <= EXTEND_OFFER_MILLIS
 
         fun isTimed(item: RewardItemEntity): Boolean =
             item.boosterEffect.isNotEmpty() ||
@@ -109,6 +117,9 @@ class BoosterManager @Inject constructor(
         }
         return finished
     }
+
+    /** Adds [minutes] to a running session. False if it has already ended. */
+    suspend fun extend(itemId: Long, minutes: Int): Boolean = rewardDao.extend(itemId, minutes) > 0
 
     /** True while an App Unlock, Entertainment or No Restriction Day has time left. */
     suspend fun hasActiveUnlock(): Boolean = activeSessions().any { it.unlocksApps }

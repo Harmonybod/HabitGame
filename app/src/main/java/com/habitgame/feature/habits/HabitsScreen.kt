@@ -35,15 +35,6 @@ fun HabitsScreen(viewModel: HabitsViewModel = hiltViewModel()) {
     var showAddSheet by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<HabitEntity?>(null) }
 
-    if (state.showLevelUp) {
-        com.habitgame.feature.dashboard.LevelUpDialog(
-            level = state.levelUpLevel,
-            title = state.levelUpTitle,
-            isTierChange = state.isTierChange,
-            onDismiss = viewModel::dismissLevelUp
-        )
-    }
-
     if (showAddSheet) {
         HabitEditorSheet(
             initial = null,

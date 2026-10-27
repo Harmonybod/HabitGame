@@ -193,6 +193,29 @@ fun FocusSessionField(minutes: Int, onChange: (Int) -> Unit) {
     }
 }
 
+/** A setting with a title, a line saying what it means now, and a switch. */
+@Composable
+fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** The task's optional description, under its name. */
+@Composable
+fun DescriptionField(value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value, onValueChange = { onChange(it.take(500)) },
+        label = { Text("Description (optional)") },
+        minLines = 2, maxLines = 5,
+        modifier = Modifier.fillMaxWidth(), colors = fieldColors()
+    )
+}
+
 const val DEFAULT_FOCUS_MINUTES = 25
 private val FOCUS_CHOICES = listOf(15, 25, 45, 60)
 

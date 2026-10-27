@@ -18,7 +18,8 @@ data class LevelUpResult(
 class UserProgressEngine @Inject constructor(
     private val userRepo: UserRepository,
     private val boosterManager: BoosterManager,
-    private val trackerRepo: TrackerRepository
+    private val trackerRepo: TrackerRepository,
+    private val rewardManager: RewardManager
 ) {
     companion object {
         val TITLES = listOf("Beginner", "Focused", "Consistent", "Disciplined", "Elite", "Legendary")
@@ -61,6 +62,8 @@ class UserProgressEngine @Inject constructor(
                 title = newTitle
             )
         )
+        // After the save above, so its copy of the user doesn't undo the coins
+        if (didLevelUp) rewardManager.levelsReached(user.level, currentLevel, newTitle)
         return LevelUpResult(didLevelUp, currentLevel, newTitle, earnedXp)
     }
 

@@ -32,8 +32,20 @@ data class AppLockUiState(
 class AppLockViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val appLockRepo: AppLockRepository,
-    private val appRestrictionManager: AppRestrictionManager
+    private val appRestrictionManager: AppRestrictionManager,
+    private val economyManager: com.habitgame.domain.engine.EconomyManager,
+    private val userRepo: com.habitgame.core.database.repository.UserRepository
 ) : ViewModel() {
+
+    companion object {
+        /** Taking an app off the lock list for good costs this much. */
+        const val UNLOCK_XP = 150
+        const val UNLOCK_COINS = 50L
+    }
+
+    /** The coins you have, to say whether unlocking is affordable. */
+    val coins: StateFlow<Long> = userRepo.observeUser().map { it?.totalCoins ?: 0L }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     private val permissions = MutableStateFlow(true to true)
     private val installed = MutableStateFlow<List<LockableApp>?>(null)
@@ -65,8 +77,13 @@ class AppLockViewModel @Inject constructor(
         appRestrictionManager.startMonitorService()
     }
 
-    /** Takes an app off the locked list for good (not a timed unlock from the Shop). */
+    /**
+     * Takes an app off the locked list for good (not a timed unlock from the Shop), for 150 XP
+     * and 50 coins. Nothing happens without enough coins.
+     */
     fun unlock(app: AppLockEntity) = viewModelScope.launch {
+        if (!economyManager.spendCoins(UNLOCK_COINS, "🔓 Unlocked ${app.appName}")) return@launch
+        userRepo.deductXp(UNLOCK_XP)
         appLockRepo.removeApp(app.packageName)
         if (appLockRepo.getAll().isEmpty()) appRestrictionManager.stopMonitorService()
     }

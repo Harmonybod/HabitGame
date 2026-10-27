@@ -129,6 +129,13 @@ class ShopViewModel @Inject constructor(
     }
 
     /** Called by the screen when a countdown reaches zero. */
+    /** 5 more hours of a No Restriction Day that's nearly over, for 50 coins. */
+    fun extendSession(session: com.habitgame.domain.engine.ActiveSession) {
+        viewModelScope.launch {
+            _message.value = SessionEndWorker.extend(context, economyManager, boosterManager, session)
+        }
+    }
+
     fun endFinishedSessions() {
         viewModelScope.launch {
             SessionEndWorker.notifyEnded(context, boosterManager.endFinishedSessions())

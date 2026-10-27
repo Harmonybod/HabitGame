@@ -32,6 +32,7 @@ class TrackerManager @Inject constructor(
     private val habitRepo: HabitRepository,
     private val trackerRepo: TrackerRepository,
     private val userRepo: UserRepository,
+    private val rewardManager: com.habitgame.domain.engine.RewardManager,
     @ApplicationContext private val context: Context
 ) {
     companion object {
@@ -198,9 +199,11 @@ class TrackerManager @Inject constructor(
         val habits = habitRepo.observeActiveHabits().first().filter { TaskTiming.isDueOn(it, today) }
         val habitsDone = habits.count { habitRepo.isHabitCompletedToday(it.id) }
 
-        trackerRepo.saveDayProgress(
-            DayProgressEntity(date = today.toString(), done = tasksDone + habitsDone, total = tasks.size + habits.size)
-        )
+        val done = tasksDone + habitsDone
+        val total = tasks.size + habits.size
+        trackerRepo.saveDayProgress(DayProgressEntity(date = today.toString(), done = done, total = total))
+        // Everything given to today is done (any-time tasks don't count): 100 coins, once a day
+        if (total > 0 && done == total) rewardManager.dayComplete(today)
     }
 
     /** Reminder times from Settings: before tasks and habits, and before shopping deadlines. */

@@ -44,6 +44,7 @@ class SettingsViewModel @Inject constructor(
     private val progressTransfer: com.habitgame.domain.transfer.ProgressTransfer,
     private val cloudSync: com.habitgame.domain.sync.CloudSync,
     private val noteDao: com.habitgame.core.database.dao.NoteDao,
+    private val rewardClaimDao: com.habitgame.core.database.dao.RewardClaimDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -197,6 +198,7 @@ class SettingsViewModel @Inject constructor(
         economyRepo.deleteAllRewards()
         appLockRepo.deleteAll()
         noteDao.deleteAll()
+        rewardClaimDao.deleteAll()
         userRepo.deleteAll()  // Also re-creates a fresh UserEntity
         economyRepo.seedDefaultShop()
         trackerManager.runDailyMaintenance()  // fresh 100-day challenge starting today

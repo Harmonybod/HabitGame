@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,6 +99,33 @@ fun CoinBalanceChip(coins: Long, modifier: Modifier = Modifier) {
             color = GoldCoin.readable(),
             fontSize = 15.sp
         )
+    }
+}
+
+/**
+ * A running booster for the top of Home, next to the streak: its icon and strength
+ * ("2×") or, for the others, the time it has left.
+ */
+@Composable
+fun BoosterChip(session: com.habitgame.domain.engine.ActiveSession, now: Long, modifier: Modifier = Modifier) {
+    val effect = session.item.boosterEffect
+    val left = session.remainingMillis(now)
+    val label = when (effect) {
+        com.habitgame.domain.engine.BoosterManager.DOUBLE_XP, com.habitgame.domain.engine.BoosterManager.DOUBLE_COINS -> "2×"
+        else -> if (left >= 60 * 60_000L) "${left / (60 * 60_000L)}h" else "${(left / 60_000L).coerceAtLeast(1)}m"
+    }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
+            .semantics(mergeDescendants = true) { contentDescription = "${session.item.name}, ${formatRemaining(left)}" }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        com.habitgame.ui.PackEmoji(session.item.iconEmoji, 18.dp)
+        Text(label, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, fontSize = 13.sp)
     }
 }
 

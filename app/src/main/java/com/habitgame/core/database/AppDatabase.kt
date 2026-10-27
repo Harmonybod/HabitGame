@@ -25,9 +25,10 @@ import com.habitgame.core.database.entity.*
         JournalEntryEntity::class,
         SavingsEntryEntity::class,
         XpLogEntity::class,
-        NoteEntity::class
+        NoteEntity::class,
+        RewardClaimEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -48,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun savingsDao(): SavingsDao
     abstract fun xpLogDao(): XpLogDao
     abstract fun transferDao(): TransferDao
+    abstract fun rewardClaimDao(): RewardClaimDao
     abstract fun noteDao(): NoteDao
 
     companion object {
@@ -98,6 +100,17 @@ abstract class AppDatabase : RoomDatabase() {
          * App Unlock time now counts only while locked apps are open, the XP graph gets a history
          * table (filled from what was already earned), and No Restriction Day costs 600.
          */
+        /**
+         * Bonuses paid once (finishing a day, streaks, levels, connecting Google), and extra hours
+         * bought on top of a running No Restriction Day.
+         */
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS reward_claims (`key` TEXT PRIMARY KEY NOT NULL, coins INTEGER NOT NULL, claimedAt INTEGER NOT NULL)")
+                db.execSQL("ALTER TABLE reward_items ADD COLUMN extendedMinutes INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** All-time coins earned, for the stats (the balance goes down when coins are spent). */
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {

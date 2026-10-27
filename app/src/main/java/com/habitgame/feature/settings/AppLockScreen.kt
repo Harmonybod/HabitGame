@@ -31,6 +31,7 @@ fun AppLockScreen(onBack: () -> Unit, viewModel: AppLockViewModel = hiltViewMode
     val state by viewModel.state.collectAsState()
     var adding by remember { mutableStateOf(false) }
     var unlocking by remember { mutableStateOf<AppLockEntity?>(null) }
+    val coins by viewModel.coins.collectAsState()
 
     // Permissions may have been allowed in the phone's settings meanwhile
     val owner = LocalLifecycleOwner.current
@@ -44,14 +45,32 @@ fun AppLockScreen(onBack: () -> Unit, viewModel: AppLockViewModel = hiltViewMode
         AlertDialog(
             onDismissRequest = { unlocking = null },
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = { Text("Unlock ${app.appName}?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
+            title = { Text("⚠️ Unlock ${app.appName}?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
             text = {
-                Text(
-                    "It won't be locked any more, so you can open it without spending coins. You can lock it again with +.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                val affordable = coins >= AppLockViewModel.UNLOCK_COINS
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Unlocking an app you chose to lock costs ${AppLockViewModel.UNLOCK_XP} XP and ${AppLockViewModel.UNLOCK_COINS} coins.",
+                        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        "It won't be locked any more, so you can open it freely. You can lock it again with +.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!affordable) {
+                        Text(
+                            "You have $coins coins, so you need ${AppLockViewModel.UNLOCK_COINS - coins} more.",
+                            color = com.habitgame.ui.theme.DangerRed, fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             },
-            confirmButton = { TextButton(onClick = { viewModel.unlock(app); unlocking = null }) { Text("Unlock", fontWeight = FontWeight.Bold) } },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.unlock(app); unlocking = null },
+                    enabled = coins >= AppLockViewModel.UNLOCK_COINS
+                ) { Text("Pay and unlock", fontWeight = FontWeight.Bold) }
+            },
             dismissButton = { TextButton(onClick = { unlocking = null }) { Text("Cancel") } }
         )
     }

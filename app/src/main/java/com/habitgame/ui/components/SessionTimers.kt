@@ -40,7 +40,13 @@ fun formatRemaining(millis: Long): String {
 
 /** A draining bar with the time left, for one running Shop purchase. */
 @Composable
-fun SessionCountdown(session: ActiveSession, now: Long, modifier: Modifier = Modifier, showName: Boolean = false) {
+fun SessionCountdown(
+    session: ActiveSession,
+    now: Long,
+    modifier: Modifier = Modifier,
+    showName: Boolean = false,
+    onExtend: ((ActiveSession) -> Unit)? = null
+) {
     val color = if (session.unlocksApps) MaterialTheme.colorScheme.primary else boardColors().sun
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -72,6 +78,13 @@ fun SessionCountdown(session: ActiveSession, now: Long, modifier: Modifier = Mod
             strokeCap = StrokeCap.Round,
             drawStopIndicator = {}
         )
+        // Nearly over: 5 more hours for 50 coins
+        if (onExtend != null && com.habitgame.domain.engine.BoosterManager.canExtend(session, now)) {
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { onExtend(session) }, modifier = Modifier.fillMaxWidth()) {
+                Text("⏳ +5 hours for ${com.habitgame.domain.engine.BoosterManager.EXTEND_COST} 🪙", fontWeight = FontWeight.Bold)
+            }
+        }
         if (session.countsUsage) {
             // Bought unlock time is only spent inside the locked apps, so it's always paused in here
             Spacer(Modifier.height(4.dp))
@@ -86,12 +99,12 @@ fun SessionCountdown(session: ActiveSession, now: Long, modifier: Modifier = Mod
 
 /** Home: everything currently counting down, shown under the header. */
 @Composable
-fun ActiveSessionsCard(sessions: List<ActiveSession>, now: Long, modifier: Modifier = Modifier) {
+fun ActiveSessionsCard(sessions: List<ActiveSession>, now: Long, modifier: Modifier = Modifier, onExtend: ((ActiveSession) -> Unit)? = null) {
     GameCard(modifier) {
         Text("⏳ Running now", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
         sessions.forEach { session ->
             Spacer(Modifier.height(12.dp))
-            SessionCountdown(session, now, showName = true)
+            SessionCountdown(session, now, showName = true, onExtend = onExtend)
         }
     }
 }

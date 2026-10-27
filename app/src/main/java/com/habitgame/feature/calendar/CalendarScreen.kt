@@ -99,7 +99,8 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         item {
             Spacer(Modifier.height(4.dp))
             Text(
-                "📋 ${state.selectedDate}",
+                "📋 " + if (state.selectedDate == java.time.LocalDate.now()) "Today" else
+                    state.selectedDate.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault())),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
@@ -123,14 +124,21 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
                     Difficulty.EASY -> SuccessGreen; Difficulty.MEDIUM -> CyanXp
                     Difficulty.HARD -> WarningAmber; Difficulty.EPIC -> NeonPink
                 }
+                val done = task.id in state.doneTaskIds
                 GameCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(if (task.isCompleted) "✅" else "⏳", fontSize = 20.sp)
+                        Text(if (done) "✅" else "⏳", fontSize = 20.sp)
                         Column(Modifier.weight(1f)) {
-                            Text(task.name, color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(task.name, color = if (done) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 DifficultyBadge(task.difficulty.name, diffColor)
+                                com.habitgame.domain.tracker.TaskTiming.timeOfDay(task)?.let {
+                                    Text("⏰ " + com.habitgame.domain.tracker.TaskTiming.formatTime(it), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                }
                                 Text("⭐${task.xpReward} XP", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            }
+                            if (!done) task.deadlineAt?.let {
+                                Text("⏳ Due " + com.habitgame.domain.tracker.ShoppingText.deadline(it), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             }
                         }
                     }

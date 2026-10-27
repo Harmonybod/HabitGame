@@ -26,6 +26,27 @@ class EconomyManager @Inject constructor(
         return amount
     }
 
+    /** Bonus coins (day complete, streaks, levels…): paid as they are, without boosters or combos. */
+    suspend fun earnBonus(amount: Long, reason: String) {
+        if (amount <= 0) return
+        userRepo.addCoins(amount)
+        economyRepo.recordEarn(amount, reason)
+    }
+
+    /**
+     * Five more hours of a running No Restriction Day for 50 coins. False when there aren't
+     * enough coins or it has already ended (then nothing is spent).
+     */
+    suspend fun extendSession(session: ActiveSession): Boolean {
+        if (!BoosterManager.canExtend(session)) return false
+        if (!spendCoins(BoosterManager.EXTEND_COST, "⏳ +5 h ${session.item.name}")) return false
+        if (!boosterManager.extend(session.item.id, BoosterManager.EXTEND_MINUTES)) {
+            earnBonus(BoosterManager.EXTEND_COST, "Refund: ${session.item.name} had ended")
+            return false
+        }
+        return true
+    }
+
     suspend fun spendCoins(amount: Long, reason: String): Boolean {
         val success = userRepo.spendCoins(amount)
         if (success) {
