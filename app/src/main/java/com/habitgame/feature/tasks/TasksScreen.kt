@@ -189,7 +189,7 @@ fun TaskListItem(task: TaskEntity, currency: String = "", onComplete: () -> Unit
                 if (!task.isCompleted) task.deadlineAt?.let { deadline ->
                     val soon = deadline - System.currentTimeMillis() < 60 * 60_000L
                     Text(
-                        (if (task.isShopping) "⏳ Buy " else "⏳ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
+                        (if (task.isShopping) "⏳ Buy " else "⏰ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
                         color = if (soon) WarningAmber.readable() else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (soon) FontWeight.SemiBold else FontWeight.Normal,
                         style = MaterialTheme.typography.labelSmall
@@ -209,6 +209,16 @@ fun TaskListItem(task: TaskEntity, currency: String = "", onComplete: () -> Unit
             }
         }
     }
+}
+
+/**
+ * A one-time task due at a set time: that moment is its deadline, which drives the reminders before it.
+ * [dateMillis] is the date picker's UTC midnight (null = today); [timeMillis] a time of day.
+ */
+internal fun dueDeadline(due: Boolean, dateMillis: Long?, timeMillis: Long?): Long? {
+    if (!due || timeMillis == null) return null
+    val date = dateMillis?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate() } ?: java.time.LocalDate.now()
+    return com.habitgame.domain.tracker.TaskTiming.millisOf(date.atTime(com.habitgame.domain.tracker.TaskTiming.localTimeOf(timeMillis)))
 }
 
 private fun activityIcon(category: ActivityCategory): String = when (category) {
@@ -260,10 +270,8 @@ fun AddTaskBottomSheet(
     val challengeEnd by tasksViewModel.challengeEnd.collectAsState()
     var repeatDays by remember { mutableStateOf(emptySet<String>()) }
     var repeatEnd by remember { mutableStateOf<java.time.LocalDate?>(null) }
-    // Off by default: no deadline, and every activity except meals gets a focus timer
-    var deadline by remember { mutableStateOf<java.time.LocalDateTime?>(null) }
+    // Every activity except meals gets a focus timer
     var focusMinutes by remember { mutableIntStateOf(DEFAULT_FOCUS_MINUTES) }
-    val deadlinePassed = !shopping && repetition == RepetitionType.ONE_TIME && deadline?.isBefore(java.time.LocalDateTime.now()) == true
 
     // Date picker dialog
     if (showDatePicker) {
@@ -485,12 +493,12 @@ fun AddTaskBottomSheet(
                 ShoppingFields(shoppingForm, currency, deadlineReminders)
             }
 
-            // Due date (one-time tasks): off means any day; on gives it a day and, if wanted, a time
+            // Due (one-time tasks): off means any day; on gives it a day and, if wanted, a time with reminders before it
             val oneTime = repetition == RepetitionType.ONE_TIME
             val showTime = !shopping && (!oneTime || hasDueDate)
             if (!shopping && oneTime) SwitchRow(
-                "📅 Due date",
-                if (hasDueDate) "Planned for this day; it counts on the 100-day board" else "None: do it any day you like",
+                "📅 Due",
+                if (hasDueDate) "On that day's list and the 100-day board" else "None: do it any day you like",
                 hasDueDate
             ) { hasDueDate = it }
             if (!shopping && oneTime && hasDueDate) OutlinedButton(
@@ -500,11 +508,11 @@ fun AddTaskBottomSheet(
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Text(
-                    text = if (selectedDateMillis != null) {
-                        val cal = java.util.Calendar.getInstance().apply { timeInMillis = selectedDateMillis!! }
-                        "${cal.get(java.util.Calendar.DAY_OF_MONTH)}/${cal.get(java.util.Calendar.MONTH) + 1}/${cal.get(java.util.Calendar.YEAR)}"
-                    } else "📅 Today",
-                    color = if (selectedDateMillis != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "📅 " + (selectedDateMillis?.let {
+                        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d", java.util.Locale.getDefault()))
+                    } ?: "Today"),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -536,16 +544,8 @@ fun AddTaskBottomSheet(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-            }
-
-            if (!shopping && repetition == RepetitionType.ONE_TIME) {
-                DeadlineField(
-                    deadline = deadline,
-                    onChange = { deadline = it },
-                    offText = "None: do it whenever you like",
-                    onText = "Not done by then? It's removed from your tasks.",
-                    reminderText = deadlineReminders
-                )
+                // A due time on a one-time task is its deadline: reminders before it
+                if (oneTime) Text("🔔 Reminders $deadlineReminders.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
 
             Button(
@@ -562,7 +562,7 @@ fun AddTaskBottomSheet(
                                 )
                             )
                         )
-                    } else if (name.isNotBlank() && !shopping && !deadlinePassed) {
+                    } else if (name.isNotBlank() && !shopping) {
                         val xp = com.habitgame.domain.engine.EconomyManager.xpForDifficulty(difficulty)
                         val coins = com.habitgame.domain.engine.EconomyManager.coinsForDifficulty(difficulty)
                         val dated = repetition == RepetitionType.REPEATING || hasDueDate
@@ -591,7 +591,7 @@ fun AddTaskBottomSheet(
                             notifyAtMillis = timeMillis,
                             locationZoneId = if (categoryType == TaskCategoryType.LOCATION) selectedLocationZoneId else null,
                             focusDurationMinutes = if (categoryType == TaskCategoryType.ACTIVITY) focusMinutes else 0,
-                            deadlineAt = if (repetition == RepetitionType.ONE_TIME) deadline?.let { com.habitgame.domain.tracker.TaskTiming.millisOf(it) } else null
+                            deadlineAt = dueDeadline(repetition == RepetitionType.ONE_TIME && hasDueDate, selectedDateMillis, timeMillis)
                         ))
                     }
                 },

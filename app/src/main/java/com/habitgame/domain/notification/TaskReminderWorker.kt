@@ -38,7 +38,8 @@ class TaskReminderWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val taskRepo: TaskRepository,
     private val userRepo: UserRepository,
-    private val trackerRepo: TrackerRepository
+    private val trackerRepo: TrackerRepository,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -47,7 +48,8 @@ class TaskReminderWorker @AssistedInject constructor(
         val task = taskRepo.getTaskById(taskId) ?: return Result.success()
 
         val doneToday = TaskTiming.completedOn(task, LocalDate.now()) || (!task.isRecurring && task.isCompleted)
-        if (task.notifyEnabled && !doneToday) {
+        val skippedToday = skipDao.isSkipped(com.habitgame.core.database.entity.DaySkipEntity.key(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, LocalDate.now().toString()))
+        if (task.notifyEnabled && !doneToday && !skippedToday) {
             notify(applicationContext, task, wave, describe(task))
         }
 
@@ -82,7 +84,8 @@ class TaskReminderWorker @AssistedInject constructor(
          */
         fun schedule(context: Context, task: TaskEntity, leads: List<Int>, deadlineLeads: List<Int>) {
             ShoppingDeadlineWorker.schedule(context, task, deadlineLeads)
-            if (task.isShopping) {
+            // Shopping items, and one-time tasks due at a set time, only get the reminders before their deadline
+            if (task.isShopping || (task.deadlineAt != null && !task.isRecurring)) {
                 cancelTimeReminders(context, task.id)
                 return
             }

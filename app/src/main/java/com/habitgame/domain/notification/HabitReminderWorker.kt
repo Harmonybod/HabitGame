@@ -31,7 +31,8 @@ class HabitReminderWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val habitRepo: HabitRepository,
-    private val userRepo: UserRepository
+    private val userRepo: UserRepository,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -40,7 +41,8 @@ class HabitReminderWorker @AssistedInject constructor(
         val habit = habitRepo.getHabitById(habitId) ?: return Result.success()
         val doneToday = habitRepo.isHabitCompletedToday(habit.id)
 
-        if (habit.isActive && !doneToday && TaskTiming.isDueOn(habit, java.time.LocalDate.now())) {
+        val skippedToday = skipDao.isSkipped(com.habitgame.core.database.entity.DaySkipEntity.key(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habit.id, java.time.LocalDate.now().toString()))
+        if (habit.isActive && !doneToday && !skippedToday && TaskTiming.isDueOn(habit, java.time.LocalDate.now())) {
             notify(applicationContext, habit, wave, habitRepo.getHabitStreak(habit.id))
         }
         if (wave == WAVE_NUDGE) {

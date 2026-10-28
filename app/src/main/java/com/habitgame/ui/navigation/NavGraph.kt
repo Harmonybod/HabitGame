@@ -54,7 +54,8 @@ fun HabitGameNavGraph(navController: NavHostController) {
                 onNavigateCalendar = { navController.navigate("calendar") },
                 onNavigateProfile = { navController.navigate("profile") },
                 onNavigateSettings = { navController.navigate("settings") },
-                onNavigateLevels = { navController.navigate("levels") { launchSingleTop = true } }
+                onNavigateLevels = { navController.navigate("levels") { launchSingleTop = true } },
+                onNavigateProgress = { navController.navigate("progress") { launchSingleTop = true } }
             )
         }
         composable("tasks") {
@@ -79,6 +80,9 @@ fun HabitGameNavGraph(navController: NavHostController) {
         }
         composable("shop") {
             ScreenFrame { ShopScreen() }
+        }
+        composable("progress") {
+            ScreenFrame { com.habitgame.feature.progress.ProgressScreen() }
         }
         composable("levels") {
             ScreenFrame { com.habitgame.feature.profile.LevelsScreen() }

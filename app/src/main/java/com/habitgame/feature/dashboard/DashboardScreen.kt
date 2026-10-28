@@ -13,6 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.SpanStyle
@@ -51,6 +55,7 @@ fun DashboardScreen(
     onNavigateProfile: () -> Unit = {},
     onNavigateSettings: () -> Unit = {},
     onNavigateLevels: () -> Unit = {},
+    onNavigateProgress: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -58,6 +63,26 @@ fun DashboardScreen(
     val updater = rememberAppUpdater()
     val update by updater.state.collectAsState()
     var editing by remember { mutableStateOf<TaskEntity?>(null) }
+    var skipping by remember { mutableStateOf<DayItem?>(null) }
+    var showCompleted by rememberSaveable { mutableStateOf(false) }
+    var showAnytime by rememberSaveable { mutableStateOf(false) }
+
+    // Skipping is asked first: it can't earn anything that day
+    skipping?.let { dayItem ->
+        AlertDialog(
+            onDismissRequest = { skipping = null },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = { Text("Skip “${dayItem.name}” today?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Text(
+                    "It leaves today's list and won't count toward today's circle. No reminders for it today, and no XP or coins. You can undo it under Completed.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = { TextButton(onClick = { viewModel.skipItem(dayItem); skipping = null }) { Text("Skip for today", fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = { skipping = null }) { Text("Cancel") } }
+        )
+    }
 
     editing?.takeIf { it.isShopping }?.let { task ->
         com.habitgame.feature.tasks.EditShoppingSheet(
@@ -201,6 +226,7 @@ fun DashboardScreen(
                 notes = state.homeNotes,
                 charts = state.charts,
                 onPickWeek = viewModel::showWeekOf,
+                onOpenProgress = onNavigateProgress,
                 onDayClick = viewModel::selectDay,
                 onStartDateChange = viewModel::setStartDate
             )
@@ -246,103 +272,73 @@ fun DashboardScreen(
             }
         }
 
-        // Tasks / Habits tabs, plus "Any time" for tasks not tied to a day (e.g. shopping)
-        val showAnytime = state.anytimeTasks.isNotEmpty()
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = state.selectedTab == 0,
-                    onClick = { viewModel.selectTab(0) },
-                    label = {
-                        Text(
-                            if (showAnytime) "📋 Today (${state.todayTasks.count { !it.isCompleted }})" else "📋 Today (${state.todayTasks.count { !it.isCompleted }} left)",
-                            maxLines = 1
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-                FilterChip(
-                    selected = state.selectedTab == 1,
-                    onClick = { viewModel.selectTab(1) },
-                    label = { Text("🔄 Habits (${state.todayHabits.count { !it.isCompletedToday }})", maxLines = 1) },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-                if (showAnytime) FilterChip(
-                    selected = state.selectedTab == 2,
-                    onClick = { viewModel.selectTab(2) },
-                    label = { Text("🗂️ Any time (${state.anytimeTasks.size})", maxLines = 1) },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        // Today: tasks and habits together, in time order. Swipe right for done, left to skip.
+        val active = state.dayItems.filter { !it.done && !it.skipped }
+        val finished = state.dayItems.filter { it.done || it.skipped }
+        item(key = "today_header") {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("📋 Today", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (active.isEmpty()) "" else "${active.size} left · swipe → done, ← skip",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 2.dp)
                 )
             }
         }
-
-        // Content based on selected tab
-        if (state.selectedTab == 2 && showAnytime) {
-            item {
-                Text(
-                    "No set day, so they don't count toward the 100-day board. Do them whenever you can.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
-                )
-            }
-            items(state.anytimeTasks, key = { "any_${it.id}" }) { task ->
-                TaskRow(
-                    task = task,
-                    onComplete = { viewModel.completeTask(task) },
-                    onStartFocus = { onNavigateFocus(task.id) },
-                    onEdit = { editing = task }
-                )
-            }
-        } else if (state.selectedTab != 1) {
-            if (state.todayTasks.none { !it.isCompleted }) {
-                item {
-                    GameCard {
-                        Text("🎉 All tasks done! Great work.", color = SuccessGreen,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
-            items(state.todayTasks, key = { it.id }) { task ->
-                TaskRow(
-                    task = task,
-                    onComplete = { viewModel.completeTask(task) },
-                    onStartFocus = { onNavigateFocus(task.id) },
-                    onEdit = { editing = task }
-                )
-            }
-        } else {
-            if (state.todayHabits.isEmpty()) {
-                item {
-                    GameCard {
-                        Text("🔄 No habits for today.", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            } else {
-                items(state.todayHabits) { habitStatus ->
-                    HabitDashboardRow(
-                        habitStatus = habitStatus,
-                        onToggle = { viewModel.toggleHabit(habitStatus.habit) }
+        if (active.isEmpty()) {
+            item(key = "today_empty") {
+                GameCard {
+                    Text(
+                        if (state.dayItems.isEmpty()) "Nothing planned for today." else "🎉 Everything for today is done!",
+                        color = if (state.dayItems.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else SuccessGreen.readable(),
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+        }
+        items(active, key = { it.key }) { dayItem ->
+            SwipeableDayRow(
+                onDone = { viewModel.completeItem(dayItem) },
+                onSkip = { skipping = dayItem },
+                modifier = Modifier.animateItem()
+            ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }) }
+        }
+
+        // Tasks with no day of their own, e.g. shopping
+        if (state.anytimeTasks.isNotEmpty()) {
+            item(key = "anytime_header") {
+                FoldHeader("🗂️ Any time", state.anytimeTasks.size, showAnytime) { showAnytime = !showAnytime }
+            }
+            if (showAnytime) {
+                item(key = "anytime_note") {
+                    Text(
+                        "No set day, so they don't count toward the 100-day board. Do them whenever you can.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                items(state.anytimeTasks, key = { "any_${it.id}" }) { task ->
+                    TaskRow(
+                        task = task,
+                        onComplete = { viewModel.completeTask(task) },
+                        onStartFocus = { onNavigateFocus(task.id) },
+                        onEdit = { editing = task },
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            }
+        }
+
+        // Done and skipped today, folded away
+        if (finished.isNotEmpty()) {
+            item(key = "done_header") {
+                FoldHeader("✓ Completed", finished.size, showCompleted) { showCompleted = !showCompleted }
+            }
+            if (showCompleted) {
+                items(finished, key = { "done_" + it.key }) { dayItem ->
+                    Box(Modifier.animateItem()) {
+                        DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) })
+                    }
                 }
             }
         }
@@ -370,6 +366,7 @@ fun ChallengeCard(
     notes: List<HabitEntity>,
     charts: com.habitgame.ui.components.WeekCharts,
     onPickWeek: (java.time.LocalDate) -> Unit,
+    onOpenProgress: () -> Unit,
     onDayClick: (Int) -> Unit,
     onStartDateChange: (java.time.LocalDate) -> Unit
 ) {
@@ -442,6 +439,7 @@ fun ChallengeCard(
                     BoardRow(challenge.scores, challenge.currentDay)
                 }
                 Spacer(Modifier.width(4.dp))
+                ProgressButton(onOpenProgress)
                 IconButton(onClick = { expanded = true }) {
                     AppIcon("ChevronRight", contentDescription = "Show more", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -462,10 +460,10 @@ fun ChallengeCard(
             // All three pages stay measured, so the card is always the height of the tallest
             HorizontalPager(state = pages, pageSpacing = 24.dp, verticalAlignment = Alignment.Top, beyondViewportPageCount = 3) { page ->
                 when (page) {
-                    0 -> Column { BoardPage(challenge, selectedDay, onDayClick, onPickDate = { showDatePicker = true }) }
+                    0 -> Column { BoardPage(challenge, selectedDay, onDayClick, onPickDate = { showDatePicker = true }, onOpenProgress = onOpenProgress) }
                     1 -> XpChartPage(charts, chartHeight, onPickWeek = { showWeekPicker = true }, onThisWeek = { onPickWeek(java.time.LocalDate.now()) })
                     2 -> FocusChartPage(charts, chartHeight, onPickWeek = { showWeekPicker = true }, onThisWeek = { onPickWeek(java.time.LocalDate.now()) })
-                    else -> SavingsChartPage(charts, chartHeight, onPickWeek = { showWeekPicker = true }, onThisWeek = { onPickWeek(java.time.LocalDate.now()) })
+                    else -> HomeSavingsPage(challenge, chartHeight)
                 }
             }
         }
@@ -562,9 +560,51 @@ private fun FocusRunningCard(
     }
 }
 
+/** Opens the Progress page: completion rate, XP, focus and savings over a week up to 100 days. */
+@Composable
+private fun ProgressButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(androidx.compose.material.icons.Icons.Filled.Insights, contentDescription = "Progress", tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** Last page of the Home card: savings so far against the plan, over the 100 days. */
+@Composable
+private fun HomeSavingsPage(challenge: ChallengeUi, chartHeight: androidx.compose.ui.unit.Dp) {
+    val money = { v: Double -> challenge.currency + TaskReminderWorker.formatAmount(v) }
+    val today = challenge.savingsDays.lastOrNull { it.actual != null }
+    Column {
+        Row(Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.Bottom) {
+            Text(
+                money(today?.actual ?: 0.0),
+                fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, lineHeight = 44.sp, maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                if (challenge.savingsGoal > 0) "of ${money(challenge.savingsGoal)}" else "saved",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
+        Text(
+            when {
+                challenge.savingsGoal <= 0 -> "Set a goal in the Savings tab to see your plan."
+                today?.difference == null -> "Your plan: ${money(challenge.savingsGoal / 100)} a day."
+                kotlin.math.abs(today.difference!!) < 0.5 -> "Right on plan. Tap a day for details."
+                today.difference!! > 0 -> "${money(today.difference!!)} ahead of plan. Tap a day for details."
+                else -> "${money(-today.difference!!)} behind plan. Tap a day for details."
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
+        )
+        SavingsProgressChart(challenge.savingsDays, challenge.savingsGoal, challenge.currency, height = chartHeight - 40.dp)
+    }
+}
+
 /** First page of the Home card: the day count, this phase's tip and the 100 circles. */
 @Composable
-private fun ColumnScope.BoardPage(challenge: ChallengeUi, selectedDay: Int?, onDayClick: (Int) -> Unit, onPickDate: () -> Unit) {
+private fun ColumnScope.BoardPage(challenge: ChallengeUi, selectedDay: Int?, onDayClick: (Int) -> Unit, onPickDate: () -> Unit, onOpenProgress: () -> Unit) {
     val phase = TrackerPlan.phaseFor(challenge.currentDay)
     Row(Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.Bottom) {
         Text(
@@ -582,6 +622,7 @@ private fun ColumnScope.BoardPage(challenge: ChallengeUi, selectedDay: Int?, onD
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(bottom = 8.dp).weight(1f)
         )
+        ProgressButton(onOpenProgress)
         IconButton(onClick = onPickDate) {
             AppIcon(
                 "CalendarMonth",
@@ -706,8 +747,84 @@ private fun ChallengeStat(value: String, label: String, modifier: Modifier = Mod
 private fun formatMinutes(minutes: Long): String =
     if (minutes >= 60) String.format(Locale.getDefault(), "%.1fh", minutes / 60f) else "${minutes}m"
 
+/** A row of today's list: the task or habit, done ones struck through, skipped ones with Undo. */
 @Composable
-fun TaskRow(task: TaskEntity, onComplete: () -> Unit, onStartFocus: () -> Unit, onEdit: () -> Unit = {}) {
+private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: (TaskEntity) -> Unit, onStartFocus: (Long) -> Unit) {
+    val onUndoSkip = if (dayItem.skipped) ({ viewModel.unskipItem(dayItem) }) else null
+    dayItem.task?.let { task ->
+        TaskRow(
+            task = task,
+            onComplete = { viewModel.completeTask(task) },
+            onStartFocus = { onStartFocus(task.id) },
+            onEdit = { onEdit(task) },
+            onUndoSkip = onUndoSkip
+        )
+    }
+    dayItem.habit?.let { habit ->
+        HabitDashboardRow(habitStatus = habit, onToggle = { viewModel.toggleHabit(habit.habit) }, onUndoSkip = onUndoSkip)
+    }
+}
+
+/** Swipe left to right: done (green). Right to left: skip for today (asks first). The row springs back either way. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableDayRow(onDone: () -> Unit, onSkip: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
+        when (value) {
+            SwipeToDismissBoxValue.StartToEnd -> onDone()
+            SwipeToDismissBoxValue.EndToStart -> onSkip()
+            SwipeToDismissBoxValue.Settled -> Unit
+        }
+        false   // a done item moves to Completed by itself; a skip waits for the answer
+    })
+    SwipeToDismissBox(
+        state = state,
+        modifier = modifier,
+        backgroundContent = {
+            val toDone = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            val toSkip = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            val color = when {
+                toDone -> SuccessGreen
+                toSkip -> WarningAmber
+                else -> Color.Transparent
+            }
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(color).padding(horizontal = 24.dp),
+                contentAlignment = if (toSkip) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                if (toDone) Text("✓ Done", color = Color.White, fontWeight = FontWeight.Bold)
+                if (toSkip) Text("Skip today ⏭", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        }
+    ) { content() }
+}
+
+/** "✓ Completed (4)" with an arrow: tap to show or hide what's under it. */
+@Composable
+private fun FoldHeader(title: String, count: Int, open: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClickLabel = if (open) "Show less" else "Show", onClick = onToggle)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$title ($count)", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Text(if (open) "Show less" else "Show", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        AppIcon(if (open) "ExpandLess" else "ChevronRight", contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+fun TaskRow(
+    task: TaskEntity,
+    onComplete: () -> Unit,
+    onStartFocus: () -> Unit,
+    onEdit: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    onUndoSkip: (() -> Unit)? = null
+) {
     val diffColor = when (task.difficulty) {
         Difficulty.EASY   -> SuccessGreen
         Difficulty.MEDIUM -> CyanXp
@@ -715,9 +832,10 @@ fun TaskRow(task: TaskEntity, onComplete: () -> Unit, onStartFocus: () -> Unit, 
         Difficulty.EPIC   -> NeonPink
     }
     val time = TaskTiming.timeOfDay(task)
-    GameCard(Modifier.clickable(onClickLabel = "Edit task", onClick = onEdit)) {
+    val struck = task.isCompleted || onUndoSkip != null
+    GameCard(modifier.clickable(onClickLabel = "Edit task", onClick = onEdit)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted)
+            RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted && onUndoSkip == null)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (time != null) {
@@ -729,24 +847,29 @@ fun TaskRow(task: TaskEntity, onComplete: () -> Unit, onStartFocus: () -> Unit, 
                             modifier = Modifier.widthIn(min = 70.dp)
                         )
                     }
-                    Text(task.name, color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                    Text(
+                        task.name, fontWeight = FontWeight.Medium,
+                        color = if (struck) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (struck) TextDecoration.LineThrough else null
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DifficultyBadge(task.difficulty.name, diffColor)
                     Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
+                if (onUndoSkip != null) SkippedNote(onUndoSkip)
                 // Deadline: amber when less than an hour is left
                 if (!task.isCompleted) task.deadlineAt?.let { deadline ->
                     val soon = deadline - System.currentTimeMillis() < 60 * 60_000L
                     Text(
-                        (if (task.isShopping) "⏳ Buy " else "⏳ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
+                        (if (task.isShopping) "⏳ Buy " else "⏰ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
                         color = if (soon) WarningAmber.readable() else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (soon) FontWeight.SemiBold else FontWeight.Normal,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
-            if (task.hasFocusTimer && !task.isCompleted) {
+            if (task.hasFocusTimer && !struck) {
                 Button(
                     onClick = onStartFocus,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -758,9 +881,19 @@ fun TaskRow(task: TaskEntity, onComplete: () -> Unit, onStartFocus: () -> Unit, 
     }
 }
 
+/** "⏭ Skipped today · Undo" on a skipped row. */
 @Composable
-fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit) {
+private fun SkippedNote(onUndo: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("⏭ Skipped today", color = WarningAmber.readable(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        TextButton(onClick = onUndo, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Undo", fontSize = 12.sp) }
+    }
+}
+
+@Composable
+fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndoSkip: (() -> Unit)? = null) {
     val habit = habitStatus.habit
+    val struck = habitStatus.isCompletedToday || onUndoSkip != null
     GameCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -779,13 +912,18 @@ fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit) {
                             modifier = Modifier.widthIn(min = 70.dp)
                         )
                     }
-                    Text(habit.name, color = if (habitStatus.isCompletedToday) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                    Text(
+                        habit.name, fontWeight = FontWeight.Medium,
+                        color = if (struck) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (struck) TextDecoration.LineThrough else null
+                    )
                 }
                 if (habitStatus.streak > 0) {
                     Text("🔥 ${habitStatus.streak} day streak", color = WarningAmber, fontSize = 11.sp)
                 }
+                if (onUndoSkip != null) SkippedNote(onUndoSkip)
             }
-            RoundCheck(checked = habitStatus.isCompletedToday, onClick = onToggle)
+            if (onUndoSkip == null) RoundCheck(checked = habitStatus.isCompletedToday, onClick = onToggle)
         }
     }
 }

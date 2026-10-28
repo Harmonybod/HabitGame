@@ -111,7 +111,8 @@ fun BoosterChip(session: com.habitgame.domain.engine.ActiveSession, now: Long, m
     val effect = session.item.boosterEffect
     val left = session.remainingMillis(now)
     val label = when (effect) {
-        com.habitgame.domain.engine.BoosterManager.DOUBLE_XP, com.habitgame.domain.engine.BoosterManager.DOUBLE_COINS -> "2×"
+        com.habitgame.domain.engine.BoosterManager.DOUBLE_XP -> "2×"
+        com.habitgame.domain.engine.BoosterManager.DOUBLE_COINS -> "2.5×"
         else -> if (left >= 60 * 60_000L) "${left / (60 * 60_000L)}h" else "${(left / 60_000L).coerceAtLeast(1)}m"
     }
     Row(

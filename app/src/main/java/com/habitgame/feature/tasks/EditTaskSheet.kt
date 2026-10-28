@@ -43,21 +43,19 @@ fun EditTaskSheet(
     var name by remember(task.id) { mutableStateOf(task.name) }
     var description by remember(task.id) { mutableStateOf(task.description) }
     // A one-time task with no due date can be done any day
-    var hasDueDate by remember(task.id) { mutableStateOf(TaskTiming.assignedDate(task) != null) }
-    var time by remember(task.id) { mutableStateOf(TaskTiming.timeOfDay(task)) }
+    // Tasks from 2.6–2.7 may have only a deadline: that becomes their due day and time
+    var hasDueDate by remember(task.id) { mutableStateOf(TaskTiming.assignedDate(task) != null || (!task.isRecurring && task.deadlineAt != null)) }
+    var time by remember(task.id) { mutableStateOf(TaskTiming.timeOfDay(task) ?: task.deadlineAt?.let { TaskTiming.localTimeOf(it) }) }
     var mode by remember(task.id) { mutableStateOf(if (task.isRecurring) RepeatMode.REPEAT else RepeatMode.ONCE) }
     var days by remember(task.id) { mutableStateOf(rule.days) }
     var endDate by remember(task.id) { mutableStateOf(rule.endDate) }
-    var onceDate by remember(task.id) { mutableStateOf(TaskTiming.scheduledDate(task) ?: LocalDate.now()) }
+    var onceDate by remember(task.id) { mutableStateOf(TaskTiming.scheduledDate(task) ?: task.deadlineAt?.let { TaskTiming.localDateOf(it) } ?: LocalDate.now()) }
     var amountText by remember(task.id) { mutableStateOf(if (task.savingAmount > 0) TaskReminderWorker.formatAmount(task.savingAmount) else "") }
-    var deadline by remember(task.id) { mutableStateOf(task.deadlineAt?.let { TaskTiming.localDateOf(it).atTime(TaskTiming.localTimeOf(it)) }) }
     var focusMinutes by remember(task.id) { mutableIntStateOf(task.focusDurationMinutes) }
     var pickingDate by remember { mutableStateOf(false) }
     val isSavings = task.activityCategory == ActivityCategory.SAVINGS
     // Only activities get a focus timer; savings are just ticked off
     val canFocus = task.categoryType == TaskCategoryType.ACTIVITY && !isSavings
-    val deadlinePassed = mode == RepeatMode.ONCE && deadline != task.deadlineAt?.let { TaskTiming.localDateOf(it).atTime(TaskTiming.localTimeOf(it)) } &&
-        deadline?.isBefore(java.time.LocalDateTime.now()) == true
 
     if (pickingDate) {
         val state = rememberDatePickerState(initialSelectedDateMillis = onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
@@ -116,8 +114,8 @@ fun EditTaskSheet(
                 TimeEditor(time = time, onTimeChange = { time = it })
             } else {
                 SwitchRow(
-                    "📅 Due date",
-                    if (hasDueDate) "Planned for this day; it counts on the 100-day board" else "None: do it any day you like",
+                    "📅 Due",
+                    if (hasDueDate) "On that day's list and the 100-day board" else "None: do it any day you like",
                     hasDueDate
                 ) { hasDueDate = it }
                 if (hasDueDate) {
@@ -132,13 +130,9 @@ fun EditTaskSheet(
                     EditorLabel("⏰ Time")
                     TimeEditor(time = time, onTimeChange = { time = it })
                 }
-                DeadlineField(
-                    deadline = deadline,
-                    onChange = { deadline = it },
-                    offText = "None: do it whenever you like",
-                    onText = "Not done by then? It's removed from your tasks.",
-                    reminderText = deadlineReminders
-                )
+                if (hasDueDate && time != null) {
+                    Text("🔔 Reminders $deadlineReminders.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             if (canFocus) FocusSessionField(focusMinutes) { focusMinutes = it }
@@ -146,7 +140,7 @@ fun EditTaskSheet(
             EditorActions(
                 saveLabel = "Save changes",
                 onSave = {
-                    if (name.isBlank() || deadlinePassed) return@EditorActions
+                    if (name.isBlank()) return@EditorActions
                     val repeating = mode == RepeatMode.REPEAT
                     // No due date: no day and no time
                     val dated = repeating || hasDueDate
@@ -166,7 +160,8 @@ fun EditTaskSheet(
                             repeatEndDate = if (repeating) endDate?.toString() else null,
                             scheduledDateMillis = if (repeating || !hasDueDate) null else onceDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
                             savingAmount = if (isSavings) amountText.toDoubleOrNull() ?: 0.0 else task.savingAmount,
-                            deadlineAt = if (repeating) null else deadline?.let { TaskTiming.millisOf(it) },
+                            // A due time on a one-time task is its deadline: reminders before it
+                            deadlineAt = if (!repeating && hasDueDate) chosenTime?.let { TaskTiming.millisOf(onceDate.atTime(it)) } else null,
                             focusDurationMinutes = if (canFocus) focusMinutes else task.focusDurationMinutes
                         )
                     )

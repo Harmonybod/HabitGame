@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -153,22 +154,36 @@ fun GeneralSettingsScreen(
             GameCard { SyncSection(showSignOut = false) }
         }
         item {
+            // Just the badge in use until "Show all"
+            var showAllBadges by rememberSaveable { mutableStateOf(false) }
             SettingsSectionHeader("🏅 Badge next to your name")
             GameCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ThemeRow("➖ No badge", "Nothing next to your name", user.selectedBadge.isEmpty(), false) { viewModel.setBadge("") }
-                    state.badges.forEach { badge ->
+                    val current = state.badges.firstOrNull { it.badgeKey == user.selectedBadge }
+                    if (showAllBadges || current == null) {
+                        ThemeRow("➖ No badge", "Nothing next to your name", user.selectedBadge.isEmpty(), false) { viewModel.setBadge("") }
+                    }
+                    (if (showAllBadges) state.badges else listOfNotNull(current)).forEach { badge ->
                         ShopItemRow(badge, selected = user.selectedBadge == badge.badgeKey) { viewModel.setBadge(badge.badgeKey) }
                     }
+                    ShowMoreButton(showAllBadges, "Show all ${state.badges.size} badges") { showAllBadges = it }
                 }
             }
         }
         item {
-            val unlocked = progress.badges.count { it.unlocked }
-            SettingsSectionHeader("🎖️ Achievements · $unlocked of ${progress.badges.size}")
+            // Just the ones earned until "Show all"
+            var showAllAchievements by rememberSaveable { mutableStateOf(false) }
+            val unlocked = progress.badges.filter { it.unlocked }
+            SettingsSectionHeader("🎖️ Achievements · ${unlocked.size} of ${progress.badges.size}")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Unlocked first
-                progress.badges.sortedByDescending { it.unlocked }.forEach { BadgeCard(it) }
+                if (showAllAchievements) {
+                    progress.badges.sortedByDescending { it.unlocked }.forEach { BadgeCard(it) }
+                } else if (unlocked.isEmpty()) {
+                    Text("None earned yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                } else {
+                    unlocked.forEach { BadgeCard(it) }
+                }
+                ShowMoreButton(showAllAchievements, "Show all ${progress.badges.size} achievements") { showAllAchievements = it }
             }
         }
         item {
@@ -309,13 +324,13 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
             }
         }
         item {
-            SettingsSectionHeader("⏳ Deadlines")
+            SettingsSectionHeader("⏰ Due times and deadlines")
             GameCard {
                 ReminderPicker(
-                    intro = "Remind me before a task's or shopping item's deadline. Anything not done by then is removed.",
+                    intro = "Remind me before a one-time task's due time or a shopping item's deadline. Shopping items not bought by then are removed.",
                     selected = state.user.deadlineReminderLeads,
                     choices = ReminderTimes.DEADLINE_CHOICES,
-                    footer = "Only for tasks and items you've given a deadline.",
+                    footer = "Only for tasks due at a set time and items with a deadline.",
                     onToggle = viewModel::toggleDeadlineReminder
                 )
             }
@@ -408,7 +423,19 @@ private val ACCENTS = listOf(
     "#4CAF50" to "Green",
     "#FF9800" to "Amber",
     "#9C27B0" to "Purple",
-    "#F44336" to "Red"
+    "#F44336" to "Red",
+    "#2196F3" to "Blue",
+    "#009688" to "Teal",
+    "#8BC34A" to "Lime",
+    "#FFC107" to "Gold",
+    "#FF5722" to "Orange",
+    "#FF4081" to "Rose",
+    "#7C4DFF" to "Violet",
+    "#3F51B5" to "Navy",
+    "#00E5FF" to "Aqua",
+    "#64DD17" to "Neon",
+    "#795548" to "Brown",
+    "#607D8B" to "Slate"
 )
 
 /** Themes (with previews), Glass, icon packs, accent colour and home-screen widgets. */
@@ -419,44 +446,67 @@ fun CustomizationScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltV
     val user = state.user
     val shopThemes = state.themes.associateBy { it.themeKey }
 
+    var openThemes by rememberSaveable { mutableStateOf(false) }
+    var openGlass by rememberSaveable { mutableStateOf(false) }
+    var openIcons by rememberSaveable { mutableStateOf(false) }
+    var openWidgets by rememberSaveable { mutableStateOf(false) }
+
     SettingsPage("Customization", onBack) {
         item {
             val owned = ThemeCatalog.all.count { it.free || shopThemes[it.id]?.isOwned == true }
-            SettingsSectionHeader("🎨 Themes · $owned of ${ThemeCatalog.all.size} unlocked")
-            Text(
-                "Tap a theme to use it. Locked ones are in the Shop → Cosmetic → Themes.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
-            )
+            CategoryHeader(
+                "🎨", "Themes",
+                "${ThemeCatalog.byId(user.selectedTheme)?.name ?: "Default"} · $owned of ${ThemeCatalog.all.size} unlocked",
+                openThemes
+            ) { openThemes = !openThemes }
         }
-        // Two previews per row: free ones first, then owned, then the rest
-        val themes = ThemeCatalog.all.sortedBy { theme ->
-            when {
-                theme.free -> 0
-                shopThemes[theme.id]?.isOwned == true -> 1
-                else -> 2
+        if (openThemes) {
+            item {
+                Text(
+                    "Tap a theme to use it. Locked ones are in the Shop → Cosmetic → Themes.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                )
             }
-        }
-        items(themes.chunked(2), key = { row -> row.joinToString { it.id } }) { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { theme ->
-                    val item = shopThemes[theme.id]
-                    ThemePreviewCard(
-                        theme = theme,
-                        selected = user.selectedTheme == theme.id,
-                        locked = !theme.free && item?.isOwned != true,
-                        price = item?.cost ?: ThemeCatalog.PRICE,
-                        onClick = { viewModel.setTheme(theme.id) },
-                        modifier = Modifier.weight(1f)
-                    )
+            // Two previews per row: free ones first, then owned, then the rest
+            val themes = ThemeCatalog.all.sortedBy { theme ->
+                when {
+                    theme.free -> 0
+                    shopThemes[theme.id]?.isOwned == true -> 1
+                    else -> 2
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+            items(themes.chunked(2), key = { row -> row.joinToString { it.id } }) { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { theme ->
+                        val item = shopThemes[theme.id]
+                        ThemePreviewCard(
+                            theme = theme,
+                            selected = user.selectedTheme == theme.id,
+                            locked = !theme.free && item?.isOwned != true,
+                            price = item?.cost ?: ThemeCatalog.PRICE,
+                            onClick = { viewModel.setTheme(theme.id) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
 
         // Glass, on top of any theme
         shopThemes["glass"]?.let { glass ->
             item {
-                SettingsSectionHeader("🔮 Glass")
+                CategoryHeader(
+                    "🔮", "Glass theme",
+                    when {
+                        !glass.isOwned -> "Locked · in the Shop"
+                        user.glassEnabled -> "On"
+                        else -> "Off"
+                    },
+                    openGlass
+                ) { openGlass = !openGlass }
+            }
+            if (openGlass) item {
                 GameCard {
                     GlassSettings(
                         owned = glass.isOwned,
@@ -473,7 +523,10 @@ fun CustomizationScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltV
         }
 
         item {
-            SettingsSectionHeader("🖼️ Icon pack")
+            val packName = state.iconPacks.firstOrNull { it.iconPackKey == user.selectedIconPack }?.name ?: "Default"
+            CategoryHeader("🖼️", "Icon packs", packName, openIcons) { openIcons = !openIcons }
+        }
+        if (openIcons) item {
             GameCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     ThemeRow("📦 Default", "Standard icons", user.selectedIconPack == "default", false) { viewModel.setIconPack("default") }
@@ -515,10 +568,35 @@ fun CustomizationScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltV
             }
         }
 
-        item {
-            SettingsSectionHeader("🧩 Widgets")
-            GameCard { WidgetsSection() }
+        item { CategoryHeader("🧩", "Widgets", "Add HabitGame to your home screen", openWidgets) { openWidgets = !openWidgets } }
+        if (openWidgets) item { GameCard { WidgetsSection() } }
+    }
+}
+
+/** A Customization category: tap to open or close what's in it. */
+@Composable
+private fun CategoryHeader(emoji: String, title: String, summary: String, open: Boolean, onToggle: () -> Unit) {
+    GameCard(Modifier.clickable(onClickLabel = if (open) "Close $title" else "Open $title", onClick = onToggle)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Plain emoji: an icon pack may draw several of these the same
+            Text(emoji, fontSize = 24.sp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(summary, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            }
+            AppIcon(if (open) "ExpandLess" else "ExpandMore", contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/** "Show all …" / "Show less" under a shortened list. */
+@Composable
+internal fun ShowMoreButton(expanded: Boolean, showAllLabel: String, onChange: (Boolean) -> Unit) {
+    TextButton(onClick = { onChange(!expanded) }, modifier = Modifier.fillMaxWidth()) {
+        Text(if (expanded) "Show less" else showAllLabel, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(4.dp))
+        AppIcon(if (expanded) "ExpandLess" else "ExpandMore", contentDescription = null, modifier = Modifier.size(18.dp))
     }
 }
 

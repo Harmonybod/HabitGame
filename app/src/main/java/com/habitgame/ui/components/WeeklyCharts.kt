@@ -157,56 +157,6 @@ fun FocusChartPage(charts: WeekCharts, chartHeight: Dp, onPickWeek: () -> Unit, 
 }
 
 /**
- * Savings page of the Home card: money saved so far this week as a line, the plan the user
- * set as a dashed line, and green dots on days extra money was added.
- */
-@Composable
-fun SavingsChartPage(charts: WeekCharts, chartHeight: Dp, onPickWeek: () -> Unit, onThisWeek: () -> Unit) {
-    val saved = MaterialTheme.colorScheme.primary
-    // Extra funds in green, or gold if the accent itself is greenish
-    val extra = (if (closeTo(saved, SuccessGreen)) GoldCoin else SuccessGreen).readable()
-    val plan = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
-    val totalExtra = charts.savedExtra.sum()
-
-    // Running totals for the week
-    var running = 0.0
-    val cumulative = (0..6).map { i ->
-        running += charts.savedPlanned[i] + charts.savedExtra[i]
-        if (i <= charts.todayIndex) running.toFloat() else null
-    }
-    // Where the plan says you should be by each day, up to today
-    val planLine = (0..6).map { i -> if (i <= charts.todayIndex) (charts.dailyTarget * (i + 1)).toFloat() else null }
-    val markers = (0..6).filter { charts.savedExtra[it] > 0 && cumulative[it] != null }.map { i ->
-        Marker(i, cumulative[i]!!, extra, "+" + compact(charts.savedExtra[i].toFloat()))
-    }
-
-    Column {
-        PageHeader(charts.money(running), "saved", charts, onPickWeek, onThisWeek)
-        PageNote(
-            if (totalExtra > 0) "Includes ${charts.money(totalExtra)} extra." else "On plan so far.",
-            if (charts.dailyTarget > 0) "Your plan: ${charts.money(charts.dailyTarget)} a day." else "Set a goal in the Savings tab."
-        )
-        WeekLineChart(
-            weekStart = charts.weekStart,
-            lines = buildList {
-                if (charts.dailyTarget > 0) add(Line(planLine, plan, dashed = true, showPoints = false))
-                add(Line(cumulative, saved, filled = true))
-            },
-            markers = markers,
-            emptyMax = 10f,
-            height = chartHeight,
-            pointLabel = { "" }
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            LegendLine(saved, "Saved")
-            if (charts.dailyTarget > 0) LegendLine(plan, "Plan", dashed = true)
-            LegendRing(extra, "Extra funds")
-        }
-    }
-}
-
-/**
  * Big number and label, in the same style as "2 of 100 days", with the week underneath
  * the label and a calendar button to pick another week.
  */

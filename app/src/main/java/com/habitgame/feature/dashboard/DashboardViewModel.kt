@@ -36,17 +36,35 @@ data class ChallengeUi(
     val savedTotal: Double = 0.0,
     val currency: String = "",
     val journalEntries: Int = 0,
-    val todayMusic: com.habitgame.domain.music.MusicInfo? = null
+    val todayMusic: com.habitgame.domain.music.MusicInfo? = null,
+    val savingsGoal: Double = 0.0,
+    val savingsDays: List<com.habitgame.domain.tracker.SavingsDay> = emptyList()   // saved vs the plan, day 1 to 100
 ) {
     fun dateOf(day: Int): LocalDate = startDate.plusDays((day - 1).toLong())
     val endDate: LocalDate get() = dateOf(TrackerPlan.TOTAL_DAYS)
 }
 
+/** One row of today's list on Home: a task or a habit, in time order. */
+data class DayItem(
+    val task: TaskEntity? = null,
+    val habit: HabitWithStatus? = null,
+    val done: Boolean,
+    val skipped: Boolean
+) {
+    val key: String get() = task?.let { "task_${it.id}" } ?: "habit_${habit!!.habit.id}"
+    val time: LocalTime? get() = task?.let { TaskTiming.timeOfDay(it) } ?: habit?.let { TaskTiming.timeOfDay(it.habit) }
+    val name: String get() = task?.name ?: habit!!.habit.name
+
+    companion object {
+        /** By time of day; ones without a time come last. */
+        val ORDER: Comparator<DayItem> = compareBy({ it.time == null }, { it.time })
+    }
+}
+
 data class DashboardUiState(
     val user: UserEntity = UserEntity(),
-    val todayTasks: List<TaskEntity> = emptyList(),
+    val dayItems: List<DayItem> = emptyList(),          // today's tasks and habits, by time
     val anytimeTasks: List<TaskEntity> = emptyList(),   // not done yet and not tied to a day, e.g. shopping
-    val todayHabits: List<HabitWithStatus> = emptyList(),
     val xpProgress: Float = 0f,
     val xpRequired: Long = 100,
     val comboCount: Int = 0,
@@ -54,7 +72,6 @@ data class DashboardUiState(
     val levelUpTitle: String = "",
     val levelUpLevel: Int = 0,
     val isTierChange: Boolean = false,
-    val selectedTab: Int = 0,  // 0 = Tasks, 1 = Habits
     val challenge: ChallengeUi = ChallengeUi(),
     val selectedDay: Int? = null,
     val homeNotes: List<HabitEntity> = emptyList(),  // habits with "Show on Home" turned on
@@ -76,6 +93,7 @@ class DashboardViewModel @Inject constructor(
     private val boosterManager: com.habitgame.domain.engine.BoosterManager,
     private val focusRepo: com.habitgame.core.database.repository.FocusSessionRepository,
     private val focusTimer: com.habitgame.domain.focus.FocusTimer,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -117,39 +135,42 @@ class DashboardViewModel @Inject constructor(
 
     private fun observeData() {
         viewModelScope.launch {
+            val today = LocalDate.now()
             combine(
                 userRepo.observeUser(),
                 taskRepo.observeAllTasks(),
-                habitRepo.observeActiveHabits()
-            ) { user, tasks, allHabits ->
+                habitRepo.observeActiveHabits(),
+                habitRepo.observeCompletionsForDate(today.toString()),
+                skipDao.observeForDate(today.toString())
+            ) { user, tasks, allHabits, _, skips ->
                 val u = user ?: UserEntity()
-                val today = LocalDate.now()
-                val todaysTasks = tasks
-                    .filter { TaskTiming.countsToward(it, today) }
-                    .sortedWith(compareBy<TaskEntity>({ it.isCompleted }, { TaskTiming.timeOfDay(it) ?: LocalTime.MAX }))
-                val anytime = tasks.filter { TaskTiming.isAnytime(it) && !it.isCompleted }.sortedBy { it.deadlineAt ?: Long.MAX_VALUE }
-                val habitStatuses = habitManager.filterTodaysHabits(allHabits)
-                    .sortedBy { TaskTiming.timeOfDay(it) ?: LocalTime.MAX }
-                    .map { habit ->
-                    HabitWithStatus(
-                        habit = habit,
-                        isCompletedToday = habitRepo.isHabitCompletedToday(habit.id),
-                        streak = habitRepo.getHabitStreak(habit.id)
+                val skipped = skips.map { it.key }.toSet()
+                fun isSkipped(kind: String, id: Long) =
+                    com.habitgame.core.database.entity.DaySkipEntity.key(kind, id, today.toString()) in skipped
+                // Today's tasks and habits in one list, by time
+                val taskItems = tasks.filter { TaskTiming.countsToward(it, today) }.map { task ->
+                    DayItem(task = task, done = TaskTiming.completedOn(task, today), skipped = isSkipped("task", task.id))
+                }
+                val habitItems = habitManager.filterTodaysHabits(allHabits).map { habit ->
+                    val done = habitRepo.isHabitCompletedToday(habit.id)
+                    DayItem(
+                        habit = HabitWithStatus(habit = habit, isCompletedToday = done, streak = habitRepo.getHabitStreak(habit.id)),
+                        done = done, skipped = isSkipped("habit", habit.id)
                     )
                 }
+                val dayItems = (taskItems + habitItems).sortedWith(DayItem.ORDER)
+                val anytime = tasks.filter { TaskTiming.isAnytime(it) && !it.isCompleted }.sortedBy { it.deadlineAt ?: Long.MAX_VALUE }
                 val notes = allHabits
                     .filter { it.showOnHome && it.description.isNotBlank() && !TaskTiming.repeatRule(it).hasEnded() }
                     .sortedBy { TaskTiming.timeOfDay(it) ?: LocalTime.MAX }
-                Triple(u, todaysTasks, habitStatuses) to (notes to anytime)
-            }.collect { (data, extra) ->
-                val (u, todaysTasks, habitStatuses) = data
-                val (notes, anytime) = extra
+                Triple(u, dayItems, notes) to anytime
+            }.collect { (data, anytime) ->
+                val (u, dayItems, notes) = data
                 _state.update {
                     it.copy(
                         user = u,
-                        todayTasks = todaysTasks,
+                        dayItems = dayItems,
                         anytimeTasks = anytime,
-                        todayHabits = habitStatuses,
                         homeNotes = notes,
                         xpProgress = progressEngine.progressFraction(u),
                         xpRequired = UserProgressEngine.xpRequired(u.level),
@@ -178,7 +199,9 @@ class DashboardViewModel @Inject constructor(
                     savedTotal = savings.sumOf { it.amount },
                     currency = challenge?.currency.orEmpty(),
                     journalEntries = journal.count { it.text.isNotBlank() || it.mood != null },
-                    todayMusic = journal.firstOrNull { it.date == today.toString() }?.music
+                    todayMusic = journal.firstOrNull { it.date == today.toString() }?.music,
+                    savingsGoal = challenge?.savingsGoal ?: 0.0,
+                    savingsDays = com.habitgame.domain.tracker.ProgressStats.savings(start, challenge?.savingsGoal ?: 0.0, savings, today)
                 )
             }.collect { ui -> _state.update { it.copy(challenge = ui) } }
         }
@@ -222,7 +245,26 @@ class DashboardViewModel @Inject constructor(
         }.collect { charts -> _state.update { it.copy(charts = charts) } }
     }
 
-    fun selectTab(tab: Int) = _state.update { it.copy(selectedTab = tab) }
+    /** Swiped left to right: done. Habits already done stay done. */
+    fun completeItem(item: DayItem) {
+        item.task?.let { if (!it.isCompleted) completeTask(it) }
+        item.habit?.let { if (!it.isCompletedToday) toggleHabit(it.habit) }
+    }
+
+    /** Swiped right to left (and confirmed): skipped for today. */
+    fun skipItem(item: DayItem) {
+        viewModelScope.launch {
+            item.task?.let { trackerManager.skip(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, it.id) }
+            item.habit?.let { trackerManager.skip(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, it.habit.id) }
+        }
+    }
+
+    fun unskipItem(item: DayItem) {
+        viewModelScope.launch {
+            item.task?.let { trackerManager.unskip(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, it.id) }
+            item.habit?.let { trackerManager.unskip(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, it.habit.id) }
+        }
+    }
 
     fun selectDay(day: Int) = _state.update { it.copy(selectedDay = if (it.selectedDay == day) null else day) }
 

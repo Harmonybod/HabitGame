@@ -49,7 +49,7 @@ class EconomyRepository @Inject constructor(
             RewardItemEntity(
                 name = "Double XP (1 Hour)", description = "Earn 2× XP for the next 60 minutes",
                 category = RewardCategory.BOOSTER, subcategory = RewardSubcategory.BOOSTER,
-                cost = 200, iconEmoji = "⚡", durationMinutes = 60,
+                cost = 100, iconEmoji = "⚡", durationMinutes = 60,
                 boosterEffect = "DOUBLE_XP"
             ),
             RewardItemEntity(
@@ -61,13 +61,13 @@ class EconomyRepository @Inject constructor(
             RewardItemEntity(
                 name = "No Restriction Day", description = "All app locks off for today — apps become accessible",
                 category = RewardCategory.BOOSTER, subcategory = RewardSubcategory.BOOSTER,
-                cost = 600, iconEmoji = "🔓", durationMinutes = 1440, // 24h
+                cost = 750, iconEmoji = "🔓", durationMinutes = 1440, // 24h
                 boosterEffect = "NO_RESTRICTION"
             ),
             RewardItemEntity(
-                name = "Coin Rush (30 Min)", description = "Earn 2× coins for the next 30 minutes",
+                name = "Coin Rush (1 Hour)", description = "Earn 2.5× coins for the next hour",
                 category = RewardCategory.BOOSTER, subcategory = RewardSubcategory.BOOSTER,
-                cost = 150, iconEmoji = "🪙", durationMinutes = 30,
+                cost = 150, iconEmoji = "🪙", durationMinutes = 60,
                 boosterEffect = "DOUBLE_COINS"
             ),
 
@@ -167,6 +167,9 @@ class EconomyRepository @Inject constructor(
             )
         }
         seedLock.withLock {
+            defaults.filter { it.boosterEffect.isNotEmpty() }.forEach {
+                rewardDao.updateBoosterTerms(it.boosterEffect, it.name, it.description, it.cost, it.durationMinutes)
+            }
             defaults.filter { rewardDao.countByName(it.name) == 0 }.forEach { rewardDao.insertReward(it) }
         }
     }

@@ -27,6 +27,7 @@ import com.habitgame.ui.LocalIconPack
 import com.habitgame.ui.components.GameCard
 import com.habitgame.ui.components.ProgressRing
 import com.habitgame.ui.components.RoundCheck
+import com.habitgame.ui.components.SavingsProgressChart
 import com.habitgame.ui.components.boardColors
 import java.time.LocalDate
 import java.time.LocalTime
@@ -124,6 +125,19 @@ fun SavingsScreen(viewModel: SavingsViewModel = hiltViewModel()) {
                         }
                     }
                 }
+            }
+        }
+
+        // Saved so far against the plan, over the 100 days
+        if (state.days.isNotEmpty()) item {
+            GameCard {
+                Text("📈 100-day progress", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "Tap a day to see what you'd saved by then and how it compares with the plan.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+                SavingsProgressChart(state.days, state.goal, state.currency, height = 240.dp)
             }
         }
 

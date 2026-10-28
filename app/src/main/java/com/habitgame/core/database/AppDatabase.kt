@@ -26,9 +26,10 @@ import com.habitgame.core.database.entity.*
         SavingsEntryEntity::class,
         XpLogEntity::class,
         NoteEntity::class,
-        RewardClaimEntity::class
+        RewardClaimEntity::class,
+        DaySkipEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -50,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun xpLogDao(): XpLogDao
     abstract fun transferDao(): TransferDao
     abstract fun rewardClaimDao(): RewardClaimDao
+    abstract fun daySkipDao(): DaySkipDao
     abstract fun noteDao(): NoteDao
 
     companion object {
@@ -104,6 +106,13 @@ abstract class AppDatabase : RoomDatabase() {
          * Bonuses paid once (finishing a day, streaks, levels, connecting Google), and extra hours
          * bought on top of a running No Restriction Day.
          */
+        /** Tasks and habits skipped for a day from Home. */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS day_skips (`key` TEXT PRIMARY KEY NOT NULL, kind TEXT NOT NULL, itemId INTEGER NOT NULL, date TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+            }
+        }
+
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS reward_claims (`key` TEXT PRIMARY KEY NOT NULL, coins INTEGER NOT NULL, claimedAt INTEGER NOT NULL)")

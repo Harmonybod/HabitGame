@@ -29,7 +29,8 @@ data class SavingsUiState(
     val savedToday: Double = 0.0,
     val daysLeft: Int = TrackerPlan.TOTAL_DAYS,
     val entries: List<SavingsEntryEntity> = emptyList(),
-    val tasks: List<TaskEntity> = emptyList()
+    val tasks: List<TaskEntity> = emptyList(),
+    val days: List<com.habitgame.domain.tracker.SavingsDay> = emptyList()   // saved vs the plan, day 1 to 100
 ) {
     val progress: Float get() = if (goal <= 0) 0f else (total / goal).toFloat().coerceIn(0f, 1f)
     val remaining: Double get() = (goal - total).coerceAtLeast(0.0)
@@ -60,6 +61,10 @@ class SavingsViewModel @Inject constructor(
             savedToday = entries.filter { it.date == today.toString() }.sumOf { it.amount },
             daysLeft = TrackerPlan.TOTAL_DAYS - day + 1,
             entries = entries,
+            days = com.habitgame.domain.tracker.ProgressStats.savings(
+                challenge?.startDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: today,
+                challenge?.savingsGoal ?: 0.0, entries, today
+            ),
             tasks = tasks
                 .filter { it.activityCategory == ActivityCategory.SAVINGS }
                 .sortedWith(compareBy<TaskEntity>({ it.isCompleted }, { TaskTiming.timeOfDay(it) ?: LocalTime.MAX }))

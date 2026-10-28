@@ -71,12 +71,15 @@ object CalendarEvents {
             // No day of its own: its deadline, if it has one
             val deadline = task.deadlineAt ?: return null
             if (task.isCompleted) return null
-            return EventSpec(key, "⏳ Deadline: ${task.name}", describe("Not done by then? It's removed from your HabitGame tasks.", key), deadline, 15, reminders = deadlineReminders)
+            return EventSpec(key, "⏳ Deadline: ${task.name}", describe(task.description, key), deadline, 15, reminders = deadlineReminders)
         }
         val done = task.isCompleted
         val title = (if (done) "✅ " else "") + task.name
         return if (time != null) {
-            EventSpec(key, title, describe(task.description, key), date.atTime(time).atZone(zone).toInstant().toEpochMilli(), minutes, reminders = if (done) emptyList() else reminders)
+            EventSpec(
+                key, title, describe(task.description, key), date.atTime(time).atZone(zone).toInstant().toEpochMilli(), minutes,
+                reminders = if (done) emptyList() else if (task.deadlineAt != null) deadlineReminders else reminders
+            )
         } else {
             EventSpec(key, title, describe(task.description, key), date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), 24 * 60, allDay = true)
         }

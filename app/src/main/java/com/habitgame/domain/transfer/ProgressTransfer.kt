@@ -36,7 +36,8 @@ data class TransferPayload(
     val xpLog: List<XpLogEntity>,
     val focusSessions: List<FocusSessionEntity>? = null,  // null in codes from before 2.2
     val notes: List<NoteEntity>? = null,                   // null in codes from before 2.3
-    val rewardClaims: List<RewardClaimEntity>? = null      // null in codes from before 2.7
+    val rewardClaims: List<RewardClaimEntity>? = null,     // null in codes from before 2.7
+    val daySkips: List<DaySkipEntity>? = null              // null in codes from before 2.8
 )
 
 /**
@@ -73,7 +74,8 @@ class ProgressTransfer @Inject constructor(
             xpLog = dao.xpLog(),
             focusSessions = dao.focusSessions(),
             notes = dao.notes(),
-            rewardClaims = dao.rewardClaims()
+            rewardClaims = dao.rewardClaims(),
+            daySkips = dao.daySkips()
         )
         return encode(gson.toJson(payload))
     }
@@ -114,6 +116,7 @@ class ProgressTransfer @Inject constructor(
             payload.focusSessions?.let { dao.clearFocusSessions(); dao.putFocusSessions(it) }
             payload.notes?.let { dao.clearNotes(); dao.putNotes(it) }
             payload.rewardClaims?.let { dao.clearRewardClaims(); dao.putRewardClaims(it) }
+            payload.daySkips?.let { dao.clearDaySkips(); dao.putDaySkips(it) }
             payload.challenge?.let { dao.putChallenge(it) }
             // Photos are files on this phone, so keep this phone's own
             dao.putUser(

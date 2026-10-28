@@ -3,6 +3,7 @@ package com.habitgame.domain.tracker
 import android.content.Context
 import com.habitgame.core.database.entity.ChallengeEntity
 import com.habitgame.core.database.entity.DayProgressEntity
+import com.habitgame.core.database.entity.DaySkipEntity
 import com.habitgame.core.database.entity.HabitEntity
 import com.habitgame.core.database.entity.HabitFrequency
 import com.habitgame.domain.notification.HabitReminderWorker
@@ -33,6 +34,7 @@ class TrackerManager @Inject constructor(
     private val trackerRepo: TrackerRepository,
     private val userRepo: UserRepository,
     private val rewardManager: com.habitgame.domain.engine.RewardManager,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao,
     @ApplicationContext private val context: Context
 ) {
     companion object {
@@ -193,10 +195,14 @@ class TrackerManager @Inject constructor(
     /** Records how much of today's checklist (tasks + habits) is done. */
     suspend fun snapshotToday() {
         val today = LocalDate.now()
-        val tasks = taskRepo.getAllTasks().filter { TaskTiming.countsToward(it, today) }
+        // Skipped for today: left out of the day altogether
+        val skipped = skipDao.forDate(today.toString()).map { it.key }.toSet()
+        fun skippedTask(id: Long) = DaySkipEntity.key(DaySkipEntity.KIND_TASK, id, today.toString()) in skipped
+        fun skippedHabit(id: Long) = DaySkipEntity.key(DaySkipEntity.KIND_HABIT, id, today.toString()) in skipped
+        val tasks = taskRepo.getAllTasks().filter { TaskTiming.countsToward(it, today) && !skippedTask(it.id) }
         val tasksDone = tasks.count { TaskTiming.completedOn(it, today) }
 
-        val habits = habitRepo.observeActiveHabits().first().filter { TaskTiming.isDueOn(it, today) }
+        val habits = habitRepo.observeActiveHabits().first().filter { TaskTiming.isDueOn(it, today) && !skippedHabit(it.id) }
         val habitsDone = habits.count { habitRepo.isHabitCompletedToday(it.id) }
 
         val done = tasksDone + habitsDone
@@ -229,16 +235,32 @@ class TrackerManager @Inject constructor(
         HabitReminderWorker.schedule(context, habit, habitRepo.isHabitCompletedToday(habit.id), leads().first)
     }
 
-    /** Tasks and shopping items still not done when their deadline passed (e.g. while the phone was off) are removed. */
+    /** Shopping items still not bought when their deadline passed (e.g. while the phone was off) are removed. */
     suspend fun removeExpired() {
         val now = System.currentTimeMillis()
         taskRepo.getAllTasks()
-            .filter { !it.isRecurring && !it.isCompleted && (it.deadlineAt ?: Long.MAX_VALUE) <= now }
+            .filter { it.isShopping && !it.isCompleted && (it.deadlineAt ?: Long.MAX_VALUE) <= now }
             .forEach { task ->
                 taskRepo.deleteTask(task)
                 TaskReminderWorker.cancelReminder(context, task.id)
                 TaskReminderWorker.dismissNotifications(context, task.id)
             }
+    }
+
+    /**
+     * Skips a task or habit for [date] (today by default): it leaves the day's list and checklist,
+     * its reminders that day stay quiet, and it isn't counted as missed.
+     */
+    suspend fun skip(kind: String, itemId: Long, date: LocalDate = LocalDate.now()) {
+        skipDao.skip(DaySkipEntity.of(kind, itemId, date.toString()))
+        if (kind == DaySkipEntity.KIND_TASK) TaskReminderWorker.dismissNotifications(context, itemId)
+        else HabitReminderWorker.dismissNotifications(context, itemId)
+        snapshotToday()
+    }
+
+    suspend fun unskip(kind: String, itemId: Long, date: LocalDate = LocalDate.now()) {
+        skipDao.unskip(DaySkipEntity.key(kind, itemId, date.toString()))
+        snapshotToday()
     }
 
     /** Saves an edited task and moves its reminders to the new time. */

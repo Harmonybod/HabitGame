@@ -48,6 +48,10 @@ interface RewardItemDao {
     @Query("SELECT COUNT(*) FROM reward_items WHERE name = :name")
     suspend fun countByName(name: String): Int
 
+    /** Updates a Shop booster's name, description, price and length (e.g. after a price change). */
+    @Query("UPDATE reward_items SET name = :name, description = :description, cost = :cost, durationMinutes = :durationMinutes WHERE boosterEffect = :effect")
+    suspend fun updateBoosterTerms(effect: String, name: String, description: String, cost: Long, durationMinutes: Int)
+
     @Query("SELECT * FROM reward_items WHERE boosterEffect = :effect AND isOwned = 1 AND isActive = 1 LIMIT 1")
     suspend fun getActiveBooster(effect: String): RewardItemEntity?
 

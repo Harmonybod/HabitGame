@@ -29,13 +29,18 @@ class DailyResetWorker @AssistedInject constructor(
     private val userRepo: UserRepository,
     private val streakManager: StreakManager,
     private val boosterManager: BoosterManager,
-    private val trackerManager: com.habitgame.domain.tracker.TrackerManager
+    private val trackerManager: com.habitgame.domain.tracker.TrackerManager,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         try {
             // 1. Get incomplete overdue tasks
-            val overdueTasks = taskRepo.getIncompleteOverdueTasks()
+            // Tasks skipped on their day aren't missed
+            val overdueTasks = taskRepo.getIncompleteOverdueTasks().filterNot { task ->
+                val day = com.habitgame.domain.tracker.TaskTiming.scheduledDate(task)?.toString() ?: return@filterNot false
+                skipDao.isSkipped(com.habitgame.core.database.entity.DaySkipEntity.key(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, day))
+            }
 
             // 2. Deduct XP for each incomplete task (always — even with streak freeze)
             overdueTasks.forEach { _ ->

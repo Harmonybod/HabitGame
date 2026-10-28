@@ -19,15 +19,17 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 
 /**
- * Shopping items and one-time tasks with a deadline: reminders before it (1 h, 15 min and 5 min by
- * default, set in Settings → Notifications), and at the deadline it's removed if it still isn't done.
+ * Shopping items and one-time tasks with a deadline (a due time): reminders before it (1 h, 15 min and
+ * 5 min by default, set in Settings → Notifications). At the deadline a shopping item that still isn't
+ * bought is removed; a task stays on its day's list.
  * (Named for shopping, where deadlines started; the name stays so already-scheduled work still runs.)
  */
 @HiltWorker
 class ShoppingDeadlineWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val taskRepo: TaskRepository
+    private val taskRepo: TaskRepository,
+    private val skipDao: com.habitgame.core.database.dao.DaySkipDao
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -37,6 +39,8 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
         val now = System.currentTimeMillis()
 
         if (inputData.getBoolean(KEY_EXPIRE, false)) {
+            // Tasks stay on their day's list when they run late; only shopping items are removed
+            if (!task.isShopping) return Result.success()
             // WorkManager can run a little early; only remove once the deadline has really passed
             if (deadline - now > EARLY_TOLERANCE_MS) {
                 enqueueExpiry(applicationContext, task.id, deadline)
@@ -45,7 +49,7 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
             taskRepo.deleteTask(task)
             TaskReminderWorker.dismissNotifications(applicationContext, task.id)
             notifyRemoved(applicationContext, task)
-        } else if (deadline > now) {
+        } else if (deadline > now && !skipDao.isSkipped(com.habitgame.core.database.entity.DaySkipEntity.key(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, TaskTiming.localDateOf(deadline).toString()))) {
             notifyDue(applicationContext, task, deadline - now)
         }
         return Result.success()
@@ -118,7 +122,7 @@ class ShoppingDeadlineWorker @AssistedInject constructor(
             val text = if (task.isShopping) {
                 "Buy it by $deadline, or it's removed from your list. Tap Bought ✓ when you have it to earn ${task.xpReward} XP."
             } else {
-                "Finish it by $deadline, or it's removed from your tasks. Tap Done ✓ when it's finished to earn ${task.xpReward} XP."
+                "Due at $deadline. Tap Done ✓ when it's finished to earn ${task.xpReward} XP."
             }
             val bought = PendingIntent.getBroadcast(
                 context, notificationId(task.id, false),

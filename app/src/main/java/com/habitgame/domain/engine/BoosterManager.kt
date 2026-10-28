@@ -127,8 +127,8 @@ class BoosterManager @Inject constructor(
     /** XP multiplier: 2× while Double XP is running. */
     suspend fun xpMultiplier(): Float = if (isRunning(DOUBLE_XP)) 2.0f else 1.0f
 
-    /** Coin multiplier: 2× while Coin Rush is running. */
-    suspend fun coinMultiplier(): Float = if (isRunning(DOUBLE_COINS)) 2.0f else 1.0f
+    /** Coin multiplier: 2.5× while Coin Rush is running. */
+    suspend fun coinMultiplier(): Float = if (isRunning(DOUBLE_COINS)) 2.5f else 1.0f
 
     suspend fun isNoRestrictionActive(): Boolean = isRunning(NO_RESTRICTION)
 
