@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -173,7 +172,7 @@ class FocusTimerService : Service() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+            .setSound(chimeUri(this))
             .setVibrate(longArrayOf(0, 300, 200, 300))
             .setAutoCancel(true)
             .setContentIntent(openFocus(this))
@@ -196,7 +195,13 @@ class FocusTimerService : Service() {
         private const val ACTION_RESUME = "com.habitgame.focus.RESUME"
         private const val ACTION_STOP = "com.habitgame.focus.STOP"
         const val CHANNEL_TIMER = "habitgame_focus_timer"
-        const val CHANNEL_DONE = "habitgame_focus_done"
+        // The chime: a channel's sound can't change once it exists, so it has a new id (the old one is removed)
+        const val CHANNEL_DONE = "habitgame_focus_chime"
+        private const val OLD_CHANNEL_DONE = "habitgame_focus_done"
+
+        /** HabitGame's own "focus finished" chime (res/raw/focus_chime.wav, made by design/generate_focus_chime.py). */
+        fun chimeUri(context: Context): android.net.Uri =
+            android.net.Uri.parse("android.resource://${context.packageName}/${com.habitgame.R.raw.focus_chime}")
 
         /** Starts the service (or tells it something changed). */
         fun start(context: Context) {
@@ -219,12 +224,13 @@ class FocusTimerService : Service() {
                         .apply { description = "The time left in a running focus session"; setShowBadge(false) }
                 )
             }
+            nm.deleteNotificationChannel(OLD_CHANNEL_DONE)
             if (nm.getNotificationChannel(CHANNEL_DONE) == null) {
                 nm.createNotificationChannel(
                     NotificationChannel(CHANNEL_DONE, "Focus finished", NotificationManager.IMPORTANCE_HIGH).apply {
-                        description = "A sound when a focus block or a break ends"
+                        description = "HabitGame's chime when a focus block or a break ends"
                         setSound(
-                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                            chimeUri(context),
                             AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT).build()
                         )
                         enableVibration(true)
