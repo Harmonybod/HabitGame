@@ -118,51 +118,89 @@ fun DashboardScreen(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header: the profile photo with the name under it, then boosters, streak, coins and settings
+        // Header: photo, greeting and name, then streak, coins and settings on the right.
+        // While a booster runs its chip needs the room, so the name moves under the photo and the greeting goes.
         item {
+            val now = rememberNow()
+            val boosters = state.sessions.filter { it.item.boosterEffect.isNotEmpty() && !it.isFinished(now) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(
-                    Modifier
-                        .widthIn(max = 110.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClickLabel = "Open profile", onClick = onNavigateProfile),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    ProfileAvatar(
-                        imagePath = state.user.profileImageUri,
-                        displayName = state.user.displayName,
-                        size = 44.dp,
-                        initialSize = 18.sp
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            state.user.displayName,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                if (boosters.isEmpty()) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ProfileAvatar(
+                            imagePath = state.user.profileImageUri,
+                            displayName = state.user.displayName,
+                            size = 44.dp,
+                            initialSize = 18.sp,
+                            modifier = Modifier.clickable(onClickLabel = "Open profile", onClick = onNavigateProfile)
                         )
-                        // The badge picked in the Shop or Settings
-                        if (state.user.selectedBadge.isNotEmpty()) {
-                            Spacer(Modifier.width(3.dp))
-                            com.habitgame.ui.PackEmoji(state.user.selectedBadge, 14.dp)
+                        Column {
+                            Text("Good ${greeting()} ⚡", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    state.user.displayName,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                // The badge picked in the Shop or Settings
+                                if (state.user.selectedBadge.isNotEmpty()) {
+                                    Spacer(Modifier.width(6.dp))
+                                    com.habitgame.ui.PackEmoji(state.user.selectedBadge, 26.dp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        Modifier
+                            .widthIn(max = 110.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = "Open profile", onClick = onNavigateProfile),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        ProfileAvatar(
+                            imagePath = state.user.profileImageUri,
+                            displayName = state.user.displayName,
+                            size = 44.dp,
+                            initialSize = 18.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                state.user.displayName,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (state.user.selectedBadge.isNotEmpty()) {
+                                Spacer(Modifier.width(3.dp))
+                                com.habitgame.ui.PackEmoji(state.user.selectedBadge, 14.dp)
+                            }
+                        }
+                    }
+                    // Boosters, streak and coins packed to the right; scrolls sideways if several boosters run
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState(), reverseScrolling = true),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            boosters.forEach { BoosterChip(it, now) }
+                            StreakChip(state.user.currentStreak)
+                            CoinBalanceChip(state.user.totalCoins)
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                // Scrolls sideways if several boosters are running at once
-                Row(
-                    Modifier.weight(4f, fill = false).horizontalScroll(rememberScrollState(), reverseScrolling = true),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    val now = rememberNow()
-                    state.sessions.filter { it.item.boosterEffect.isNotEmpty() && !it.isFinished(now) }.forEach { BoosterChip(it, now) }
-                    StreakChip(state.user.currentStreak)
-                    CoinBalanceChip(state.user.totalCoins)
+                if (boosters.isEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        StreakChip(state.user.currentStreak)
+                        CoinBalanceChip(state.user.totalCoins)
+                    }
                 }
                 IconButton(onClick = onNavigateSettings) {
                     AppIcon(
@@ -959,3 +997,11 @@ fun LevelUpDialog(level: Int, title: String, isTierChange: Boolean = false, onDi
     )
 }
 
+private fun greeting(): String {
+    val h = java.time.LocalTime.now().hour
+    return when {
+        h < 12 -> "Morning"
+        h < 17 -> "Afternoon"
+        else   -> "Evening"
+    }
+}

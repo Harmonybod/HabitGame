@@ -97,6 +97,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    /** Wears an earned badge next to the name ("" takes it off). */
+    fun setBadge(emoji: String) {
+        viewModelScope.launch {
+            val user = userRepo.getUser() ?: return@launch
+            userRepo.updateUser(user.copy(selectedBadge = emoji))
+        }
+    }
+
     /** Returns false when the name is blank. */
     fun setDisplayName(name: String): Boolean {
         val trimmed = name.trim().take(MAX_NAME)

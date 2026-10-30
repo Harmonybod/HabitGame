@@ -159,14 +159,20 @@ fun GeneralSettingsScreen(
             SettingsSectionHeader("🏅 Badge next to your name")
             GameCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Shop badges and earned achievements can both be worn
+                    val earned = progress.badges.filter { it.unlocked }
                     val current = state.badges.firstOrNull { it.badgeKey == user.selectedBadge }
-                    if (showAllBadges || current == null) {
+                    val currentEarned = if (current == null) earned.firstOrNull { it.emoji == user.selectedBadge } else null
+                    if (showAllBadges || (current == null && currentEarned == null)) {
                         ThemeRow("➖ No badge", "Nothing next to your name", user.selectedBadge.isEmpty(), false) { viewModel.setBadge("") }
+                    }
+                    (if (showAllBadges) earned else listOfNotNull(currentEarned)).forEach { badge ->
+                        ThemeRow("${badge.emoji} ${badge.name}", "Earned: ${badge.description}", user.selectedBadge == badge.emoji, false) { viewModel.setBadge(badge.emoji) }
                     }
                     (if (showAllBadges) state.badges else listOfNotNull(current)).forEach { badge ->
                         ShopItemRow(badge, selected = user.selectedBadge == badge.badgeKey) { viewModel.setBadge(badge.badgeKey) }
                     }
-                    ShowMoreButton(showAllBadges, "Show all ${state.badges.size} badges") { showAllBadges = it }
+                    ShowMoreButton(showAllBadges, "Show all ${state.badges.size + earned.size} badges") { showAllBadges = it }
                 }
             }
         }
@@ -176,12 +182,16 @@ fun GeneralSettingsScreen(
             val unlocked = progress.badges.filter { it.unlocked }
             SettingsSectionHeader("🎖️ Achievements · ${unlocked.size} of ${progress.badges.size}")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Tap an earned one to wear it next to your name
+                val wear = { badge: com.habitgame.feature.profile.Badge ->
+                    viewModel.setBadge(if (user.selectedBadge == badge.emoji) "" else badge.emoji)
+                }
                 if (showAllAchievements) {
-                    progress.badges.sortedByDescending { it.unlocked }.forEach { BadgeCard(it) }
+                    progress.badges.sortedByDescending { it.unlocked }.forEach { BadgeCard(it, user.selectedBadge == it.emoji) { wear(it) } }
                 } else if (unlocked.isEmpty()) {
                     Text("None earned yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 } else {
-                    unlocked.forEach { BadgeCard(it) }
+                    unlocked.forEach { BadgeCard(it, user.selectedBadge == it.emoji) { wear(it) } }
                 }
                 ShowMoreButton(showAllAchievements, "Show all ${progress.badges.size} achievements") { showAllAchievements = it }
             }

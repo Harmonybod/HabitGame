@@ -118,7 +118,10 @@ fun ProfileScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                state.badges.forEach { badge -> BadgeCard(badge) }
+                state.badges.forEach { badge ->
+                    val inUse = state.user.selectedBadge == badge.emoji
+                    BadgeCard(badge, inUse = inUse, onUse = { viewModel.setBadge(if (inUse) "" else badge.emoji) })
+                }
             }
         }
     }
@@ -141,10 +144,13 @@ fun StatCard(icon: String, value: String, label: String, modifier: Modifier = Mo
 }
 
 @Composable
-fun BadgeCard(badge: Badge) {
+fun BadgeCard(badge: Badge, inUse: Boolean = false, onUse: (() -> Unit)? = null) {
+    // Earned ones can be worn next to the name, like a badge from the Shop
+    val wearable = badge.unlocked && onUse != null
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .then(if (wearable) Modifier.clickable(onClickLabel = if (inUse) "Take off ${badge.name}" else "Wear ${badge.name}") { onUse?.invoke() } else Modifier)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, if (badge.unlocked) MaterialTheme.colorScheme.primary.copy(0.4f) else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
             .alpha(if (badge.unlocked) 1f else 0.4f)
@@ -153,9 +159,15 @@ fun BadgeCard(badge: Badge) {
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(badge.emoji, fontSize = 22.sp)
-        Column {
+        Column(Modifier.weight(1f)) {
             Text(badge.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 13.sp)
             Text(badge.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+        }
+        if (wearable) {
+            Text(
+                if (inUse) "✓ In use" else "Use",
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp
+            )
         }
     }
 }
