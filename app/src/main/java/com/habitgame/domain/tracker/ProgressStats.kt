@@ -5,12 +5,16 @@ import com.habitgame.core.database.entity.SavingsEntryEntity
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-/** One day of the 100-day savings chart. [actual] is null for days still to come. */
+/**
+ * One day of the 100-day savings chart. [actual] is null for days still to come; [extra] is money
+ * added by hand that day, on top of what savings tasks put aside.
+ */
 data class SavingsDay(
     val day: Int,
     val date: LocalDate,
     val actual: Double?,
-    val target: Double
+    val target: Double,
+    val extra: Double = 0.0
 ) {
     /** Ahead (positive) or behind (negative) the target; null for days still to come. */
     val difference: Double? get() = actual?.let { it - target }
@@ -46,10 +50,15 @@ object ProgressStats {
         val daily = if (goal <= 0) 0.0 else goal / TrackerPlan.TOTAL_DAYS
         // Each entry lands on its challenge day (before the start = day 1)
         val perDay = DoubleArray(TrackerPlan.TOTAL_DAYS)
+        val extraPerDay = DoubleArray(TrackerPlan.TOTAL_DAYS)
         entries.forEach { entry ->
             val date = runCatching { LocalDate.parse(entry.date) }.getOrNull() ?: return@forEach
             val index = ChronoUnit.DAYS.between(start, date).toInt().coerceAtLeast(0)
-            if (index < TrackerPlan.TOTAL_DAYS) perDay[index] += entry.amount
+            if (index < TrackerPlan.TOTAL_DAYS) {
+                perDay[index] += entry.amount
+                // Added by hand rather than by a savings task
+                if (entry.taskId == null && entry.amount > 0) extraPerDay[index] += entry.amount
+            }
         }
         var running = 0.0
         return (0 until TrackerPlan.TOTAL_DAYS).map { i ->
@@ -59,7 +68,8 @@ object ProgressStats {
                 day = i + 1,
                 date = date,
                 actual = if (date.isAfter(today)) null else running,
-                target = minOf(daily * (i + 1), goal)
+                target = minOf(daily * (i + 1), goal),
+                extra = extraPerDay[i]
             )
         }
     }

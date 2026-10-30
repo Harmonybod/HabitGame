@@ -118,53 +118,58 @@ fun DashboardScreen(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header with profile avatar
+        // Header: the profile photo with the name under it, then boosters, streak, coins and settings
         item {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Profile avatar (opens Profile)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier
+                        .widthIn(max = 110.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = "Open profile", onClick = onNavigateProfile),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     ProfileAvatar(
                         imagePath = state.user.profileImageUri,
                         displayName = state.user.displayName,
                         size = 44.dp,
-                        initialSize = 18.sp,
-                        modifier = Modifier.clickable(onClickLabel = "Open profile", onClick = onNavigateProfile)
+                        initialSize = 18.sp
                     )
-                    Column {
-                        Text("Good ${greeting()} ⚡", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                state.user.displayName,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.headlineMedium,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            // The badge picked in the Shop or Settings
-                            if (state.user.selectedBadge.isNotEmpty()) {
-                                Spacer(Modifier.width(6.dp))
-                                com.habitgame.ui.PackEmoji(state.user.selectedBadge, 26.dp)
-                            }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            state.user.displayName,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        // The badge picked in the Shop or Settings
+                        if (state.user.selectedBadge.isNotEmpty()) {
+                            Spacer(Modifier.width(3.dp))
+                            com.habitgame.ui.PackEmoji(state.user.selectedBadge, 14.dp)
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Spacer(Modifier.weight(1f))
+                // Scrolls sideways if several boosters are running at once
+                Row(
+                    Modifier.weight(4f, fill = false).horizontalScroll(rememberScrollState(), reverseScrolling = true),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     val now = rememberNow()
                     state.sessions.filter { it.item.boosterEffect.isNotEmpty() && !it.isFinished(now) }.forEach { BoosterChip(it, now) }
                     StreakChip(state.user.currentStreak)
                     CoinBalanceChip(state.user.totalCoins)
-                    IconButton(onClick = onNavigateSettings) {
-                        AppIcon(
-                            "Settings",
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                }
+                IconButton(onClick = onNavigateSettings) {
+                    AppIcon(
+                        "Settings",
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -527,9 +532,9 @@ private fun FocusRunningCard(
     val fraction = run.fractionLeft(now)
     GameCard(Modifier.clickable(onClickLabel = "Open the focus timer", onClick = onOpen)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
-                    val stroke = 5.dp.toPx()
+                    val stroke = 3.5.dp.toPx()
                     val inset = stroke / 2
                     val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
                     drawArc(track, -90f, 360f, false, androidx.compose.ui.geometry.Offset(inset, inset), arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
@@ -538,23 +543,21 @@ private fun FocusRunningCard(
                         style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
                     )
                 }
-                Text(if (isBreak) "☕" else "🎯", fontSize = 20.sp)
+                Text(if (isBreak) "☕" else "🎯", fontSize = 14.sp)
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    (if (isBreak) "Break" else "Focus") + if (run.plan.rounds > 1) " · round ${run.round} of ${run.plan.rounds}" else "",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    com.habitgame.domain.focus.FocusRun.clock(run.left(now)) + if (run.paused) " · paused" else " left",
-                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 22.sp
-                )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                (if (isBreak) "Break" else "Focus") + if (run.plan.rounds > 1) " ${run.round}/${run.plan.rounds}" else "",
+                color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (run.paused) {
+                Text("⏸ Paused", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Spacer(Modifier.width(8.dp))
             }
-            FilledTonalButton(onClick = if (run.paused) onResume else onPause) {
-                AppIcon(if (run.paused) "PlayArrow" else "Pause", contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(if (run.paused) "Resume" else "Pause")
+            Text(com.habitgame.domain.focus.FocusRun.clock(run.left(now)), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            IconButton(onClick = if (run.paused) onResume else onPause, modifier = Modifier.size(36.dp)) {
+                AppIcon(if (run.paused) "PlayArrow" else "Pause", contentDescription = if (run.paused) "Resume" else "Pause", modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -956,11 +959,3 @@ fun LevelUpDialog(level: Int, title: String, isTierChange: Boolean = false, onDi
     )
 }
 
-private fun greeting(): String {
-    val h = java.time.LocalTime.now().hour
-    return when {
-        h < 12 -> "Morning"
-        h < 17 -> "Afternoon"
-        else   -> "Evening"
-    }
-}

@@ -55,12 +55,18 @@ fun SessionCountdown(
                     "${session.item.iconEmoji} ${session.item.name}",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
             } else {
                 Spacer(Modifier.weight(1f))
+            }
+            // Unlock time only runs while a locked app is open, so in here it's paused
+            if (session.countsUsage) {
+                Text("⏸ Paused", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                Spacer(Modifier.width(8.dp))
             }
             Text(
                 formatRemaining(session.remainingMillis(now)),
@@ -69,10 +75,10 @@ fun SessionCountdown(
                 fontSize = 12.sp
             )
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
         LinearProgressIndicator(
             progress = { session.fractionLeft(now) },
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
             color = color,
             trackColor = boardColors().empty,
             strokeCap = StrokeCap.Round,
@@ -80,19 +86,9 @@ fun SessionCountdown(
         )
         // Nearly over: 5 more hours for 50 coins
         if (onExtend != null && com.habitgame.domain.engine.BoosterManager.canExtend(session, now)) {
-            Spacer(Modifier.height(8.dp))
-            androidx.compose.material3.OutlinedButton(onClick = { onExtend(session) }, modifier = Modifier.fillMaxWidth()) {
-                Text("⏳ +5 hours for ${com.habitgame.domain.engine.BoosterManager.EXTEND_COST} 🪙", fontWeight = FontWeight.Bold)
+            androidx.compose.material3.TextButton(onClick = { onExtend(session) }, contentPadding = PaddingValues(0.dp)) {
+                Text("⏳ +5 hours for ${com.habitgame.domain.engine.BoosterManager.EXTEND_COST} 🪙", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
-        }
-        if (session.countsUsage) {
-            // Bought unlock time is only spent inside the locked apps, so it's always paused in here
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "⏸ Paused · only counts down while a locked app is open",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
-            )
         }
     }
 }
@@ -101,9 +97,8 @@ fun SessionCountdown(
 @Composable
 fun ActiveSessionsCard(sessions: List<ActiveSession>, now: Long, modifier: Modifier = Modifier, onExtend: ((ActiveSession) -> Unit)? = null) {
     GameCard(modifier) {
-        Text("⏳ Running now", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
-        sessions.forEach { session ->
-            Spacer(Modifier.height(12.dp))
+        sessions.forEachIndexed { i, session ->
+            if (i > 0) Spacer(Modifier.height(10.dp))
             SessionCountdown(session, now, showName = true, onExtend = onExtend)
         }
     }

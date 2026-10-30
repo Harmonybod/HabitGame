@@ -34,6 +34,19 @@ class ProgressStatsTest {
     }
 
     @Test
+    fun extraFundsAreMoneyAddedByHandNotByTasks() {
+        val entries = listOf(
+            SavingsEntryEntity(amount = 150.0, date = start.toString(), taskId = 7),  // from a savings task
+            saved(1, 300.0),
+            saved(2, -50.0)                                                       // a withdrawal isn't extra
+        )
+        val days = ProgressStats.savings(start, 15_000.0, entries, start.plusDays(2))
+        assertEquals(300.0, days[0].extra, 0.001)
+        assertEquals(0.0, days[1].extra, 0.001)
+        assertEquals(400.0, days[1].actual!!, 0.001)
+    }
+
+    @Test
     fun withdrawalsLowerItAndEarlierMoneyCountsFromDayOne() {
         val entries = listOf(
             SavingsEntryEntity(amount = 300.0, date = start.minusDays(3).toString()),

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.habitgame.domain.notification.TaskReminderWorker
 import com.habitgame.domain.tracker.SavingsDay
 import com.habitgame.ui.theme.CyanXp
+import com.habitgame.ui.theme.SuccessGreen
+import com.habitgame.ui.theme.readable
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -45,6 +47,9 @@ data class ChartSeries(
     val filled: Boolean = false,
     val thin: Boolean = false
 )
+
+/** A ring around one point of a line, e.g. a day extra money went in. */
+data class ChartMarker(val index: Int, val value: Float, val color: Color)
 
 /** A level drawn across the chart with a label, e.g. half of the savings goal. */
 data class ChartLevel(val value: Float, val label: String)
@@ -63,7 +68,8 @@ fun SeriesChart(
     modifier: Modifier = Modifier,
     maxValue: Float? = null,
     yTicks: Int? = null,
-    levels: List<ChartLevel> = emptyList()
+    levels: List<ChartLevel> = emptyList(),
+    markers: List<ChartMarker> = emptyList()
 ) {
     val count = series.maxOfOrNull { it.values.size } ?: 0
     if (count == 0) return
@@ -160,6 +166,11 @@ fun SeriesChart(
             }
         }
 
+        // Rings, so the point underneath stays visible
+        markers.forEach { m ->
+            drawCircle(m.color, radius = 5.dp.toPx(), center = Offset(x(m.index), y(m.value)), style = Stroke(width = 2.dp.toPx()))
+        }
+
         // The tapped day: a line down, its points, and its numbers in a box
         selected?.let { i ->
             drawLine(cursor, Offset(x(i), topY), Offset(x(i), bottom), strokeWidth = 1.dp.toPx())
@@ -179,6 +190,18 @@ fun SeriesChart(
                 }
             }
         }
+    }
+}
+
+/** A small ring and its name, under a chart. */
+@Composable
+fun ChartLegendRing(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(11.dp)) {
+            drawCircle(color, radius = size.minDimension / 2 - 1.dp.toPx(), style = Stroke(width = 2.dp.toPx()))
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -225,6 +248,7 @@ fun SavingsProgressChart(
         else -> 1
     }
     val highestSaved = shown.mapNotNull { it.actual }.maxOrNull() ?: 0.0
+    val extraColor = SuccessGreen.readable()
     Column(modifier) {
         SeriesChart(
             series = listOf(
@@ -237,11 +261,14 @@ fun SavingsProgressChart(
             maxValue = if (goal > 0 && highestSaved <= goal && lastDay - firstDay >= 60) goal.toFloat() else null,
             yTicks = 5,
             levels = if (goal > 0) listOf(0.25, 0.5, 0.75).map { ChartLevel((goal * it).toFloat(), "${(it * 100).roundToInt()}%") } else emptyList(),
+            // Days money was added by hand, on top of savings tasks
+            markers = shown.mapIndexedNotNull { i, d -> if (d.extra > 0 && d.actual != null) ChartMarker(i, d.actual.toFloat(), extraColor) else null },
             details = { i ->
                 val d = shown[i]
                 buildList {
                     add("Day ${d.day} · ${d.date.format(dateFormat)}")
                     if (d.actual != null) add("Saved: ${money(d.actual)}") else add("Still to come")
+                    if (d.extra > 0) add("Extra funds: +${money(d.extra)}")
                     add("Plan: ${money(d.target)}")
                     d.difference?.let { diff ->
                         add(
@@ -259,6 +286,7 @@ fun SavingsProgressChart(
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             ChartLegend(CyanXp, "Saved so far")
             ChartLegend(target, "Plan", dashed = true)
+            ChartLegendRing(extraColor, "Extra funds")
         }
     }
 }
