@@ -50,7 +50,8 @@ object IconProvider {
     private fun defaultNavIcon(route: String, selected: Boolean): ImageVector = when (route) {
         "dashboard" -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
         "tasks"     -> if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle
-        "habits"    -> Icons.Filled.Loop
+        "habits"    -> if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle
+        "progress"  -> if (selected) Icons.Filled.Insights else Icons.Outlined.Insights
         "journal"   -> if (selected) Icons.Filled.EditNote else Icons.Outlined.EditNote
         "notes"     -> if (selected) Icons.Filled.StickyNote2 else Icons.Outlined.StickyNote2
         "savings"   -> if (selected) Icons.Filled.Savings else Icons.Outlined.Savings
@@ -101,7 +102,8 @@ object IconProvider {
     private fun eliteNavIcon(route: String, selected: Boolean): ImageVector = when (route) {
         "dashboard" -> if (selected) Icons.Filled.Dashboard else Icons.Outlined.Dashboard
         "tasks"     -> if (selected) Icons.Filled.TaskAlt else Icons.Outlined.TaskAlt
-        "habits"    -> Icons.Filled.Autorenew
+        "habits"    -> if (selected) Icons.Filled.TaskAlt else Icons.Outlined.TaskAlt
+        "progress"  -> if (selected) Icons.Filled.QueryStats else Icons.Outlined.QueryStats
         "journal"   -> if (selected) Icons.Filled.AutoStories else Icons.Outlined.AutoStories
         "notes"     -> if (selected) Icons.Filled.Notes else Icons.Outlined.Notes
         "savings"   -> if (selected) Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet
@@ -152,7 +154,8 @@ object IconProvider {
     private fun retroNavIcon(route: String): ImageVector = when (route) {
         "dashboard" -> Icons.Sharp.GridView
         "tasks"     -> Icons.Sharp.Checklist
-        "habits"    -> Icons.Sharp.Refresh
+        "habits"    -> Icons.Sharp.Checklist
+        "progress"  -> Icons.Sharp.BarChart
         "journal"   -> Icons.Sharp.Book
         "notes"     -> Icons.Sharp.Description
         "savings"   -> Icons.Sharp.Savings

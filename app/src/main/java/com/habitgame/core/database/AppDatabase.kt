@@ -27,9 +27,11 @@ import com.habitgame.core.database.entity.*
         XpLogEntity::class,
         NoteEntity::class,
         RewardClaimEntity::class,
-        DaySkipEntity::class
+        DaySkipEntity::class,
+        AreaEntity::class,
+        ChecklistItemEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,9 +55,35 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun rewardClaimDao(): RewardClaimDao
     abstract fun daySkipDao(): DaySkipDao
     abstract fun noteDao(): NoteDao
+    abstract fun areaDao(): AreaDao
+    abstract fun checklistDao(): ChecklistDao
 
     companion object {
         const val DATABASE_NAME = "habitgame_db"
+
+        /**
+         * Areas (folders for habits and tasks; existing habit groups such as "Weight gain" become
+         * the first ones), checklists on tasks and habits, and an area on tasks.
+         */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS areas (name TEXT PRIMARY KEY NOT NULL, iconEmoji TEXT NOT NULL, " +
+                        "colorHex TEXT NOT NULL, sortOrder INTEGER NOT NULL, createdAt INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS checklist_items (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "ownerKind TEXT NOT NULL, ownerId INTEGER NOT NULL, text TEXT NOT NULL, sortOrder INTEGER NOT NULL, checkedDate TEXT)"
+                )
+                db.execSQL("ALTER TABLE tasks ADD COLUMN groupName TEXT NOT NULL DEFAULT ''")
+                db.execSQL(
+                    "INSERT OR IGNORE INTO areas (name, iconEmoji, colorHex, sortOrder, createdAt) " +
+                        "SELECT DISTINCT groupName, CASE WHEN groupName = 'Weight gain' THEN '🍽️' ELSE '📁' END, " +
+                        "CASE WHEN groupName = 'Weight gain' THEN '#FF9800' ELSE '#7C4DFF' END, 0, " +
+                        "${System.currentTimeMillis()} FROM habits WHERE groupName != ''"
+                )
+            }
+        }
 
         /** Adds the 100-day tracker tables without wiping existing tasks, habits and coins. */
         val MIGRATION_3_4 = object : Migration(3, 4) {

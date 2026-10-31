@@ -17,6 +17,7 @@ class HabitManager @Inject constructor(
     private val progressEngine: UserProgressEngine,
     private val streakManager: StreakManager,
     private val trackerManager: com.habitgame.domain.tracker.TrackerManager,
+    private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -37,6 +38,8 @@ class HabitManager @Inject constructor(
      */
     suspend fun completeHabit(habit: HabitEntity): HabitCompletionResult {
         habitRepo.completeHabit(habit.id)
+        // Done means every step of its checklist is done too
+        checklistDao.checkAll(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habit.id, LocalDate.now().toString())
 
         val streak = habitRepo.getHabitStreak(habit.id)
         val multiplier = streakManager.streakMultiplier(streak)
@@ -63,8 +66,12 @@ class HabitManager @Inject constructor(
         )
     }
 
-    suspend fun uncompleteHabit(habitId: Long) {
+    /** Un-does today's tick. Its checklist is unticked too, unless one step was unticked by hand ([keepChecklist]). */
+    suspend fun uncompleteHabit(habitId: Long, keepChecklist: Boolean = false) {
         habitRepo.uncompleteHabit(habitId)
+        if (!keepChecklist) {
+            checklistDao.uncheckOn(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habitId, LocalDate.now().toString())
+        }
         habitRepo.getHabitById(habitId)?.let { trackerManager.scheduleReminder(it) }
         trackerManager.snapshotToday()
     }

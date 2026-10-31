@@ -16,5 +16,6 @@ class AppUpdaterTest {
         assertFalse(AppUpdater.isNewer("2.4", "2.4.0"))
         assertTrue(AppUpdater.isNewer("2.9.0.1", "2.9"))
         assertFalse(AppUpdater.isNewer("2.9", "2.9.0.1"))
+        assertTrue(AppUpdater.isNewer("3.0", "2.9.0.1"))
     }
 }

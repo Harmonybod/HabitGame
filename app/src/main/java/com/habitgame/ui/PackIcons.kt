@@ -28,7 +28,8 @@ object GameIconPack {
     fun nav(route: String): Int? = when (route) {
         "dashboard" -> R.drawable.gp_home
         "tasks" -> R.drawable.gp_tasks
-        "habits" -> R.drawable.gp_habits
+        "habits" -> R.drawable.gp_tasks
+        "progress" -> R.drawable.gp_stats
         "journal" -> R.drawable.gp_journal
         "notes" -> R.drawable.gp_scroll
         "savings" -> R.drawable.gp_savings

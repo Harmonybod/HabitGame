@@ -365,7 +365,8 @@ class CloudSync @Inject constructor(
         /** Everything a transfer code carries. */
         private val SYNCED_TABLES = arrayOf(
             "user", "tasks", "habits", "habit_completions", "streak_days", "location_zones", "day_progress",
-            "journal_entries", "savings_entries", "xp_log", "challenge", "reward_items", "focus_sessions", "notes", "reward_claims", "day_skips"
+            "journal_entries", "savings_entries", "xp_log", "challenge", "reward_items", "focus_sessions", "notes", "reward_claims", "day_skips",
+            "areas", "checklist_items"
         )
     }
 }

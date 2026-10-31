@@ -35,6 +35,7 @@ class TrackerManager @Inject constructor(
     private val userRepo: UserRepository,
     private val rewardManager: com.habitgame.domain.engine.RewardManager,
     private val skipDao: com.habitgame.core.database.dao.DaySkipDao,
+    private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
     @ApplicationContext private val context: Context
 ) {
     companion object {
@@ -49,6 +50,7 @@ class TrackerManager @Inject constructor(
         userRepo.initUser()
         taskRepo.resetStaleRecurringTasks()
         removeExpired()
+        checklistDao.deleteOrphans()
         ensureChallenge()
         rescheduleAllReminders()
         snapshotToday()

@@ -24,6 +24,7 @@ class TaskCompletionManager @Inject constructor(
     private val economyManager: EconomyManager,
     private val streakManager: StreakManager,
     private val trackerManager: TrackerManager,
+    private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -36,6 +37,8 @@ class TaskCompletionManager @Inject constructor(
         if (task.isCompleted) return null
 
         taskRepo.completeTask(task.id)
+        // Done means every step of its checklist is done too
+        checklistDao.checkAll(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, LocalDate.now().toString())
         userRepo.countTaskDone()
         val streak = userRepo.getUser()?.currentStreak ?: 0
         val multiplier = streakManager.streakMultiplier(streak)

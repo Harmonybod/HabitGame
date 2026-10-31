@@ -24,6 +24,9 @@ interface DaySkipDao {
     @Query("SELECT * FROM day_skips WHERE date = :date")
     suspend fun forDate(date: String): List<DaySkipEntity>
 
+    @Query("SELECT * FROM day_skips")
+    fun observeAll(): Flow<List<DaySkipEntity>>
+
     @Query("SELECT * FROM day_skips WHERE date BETWEEN :from AND :to")
     fun observeBetween(from: String, to: String): Flow<List<DaySkipEntity>>
 

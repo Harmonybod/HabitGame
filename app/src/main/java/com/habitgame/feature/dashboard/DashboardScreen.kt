@@ -103,8 +103,10 @@ fun DashboardScreen(
             deadlineReminders = com.habitgame.domain.notification.ReminderTimes.describe(
                 com.habitgame.domain.notification.ReminderTimes.parse(state.user.deadlineReminderTimes)
             ),
+            areas = state.areas,
+            checklist = state.steps["task:${task.id}"].orEmpty().map { it.text },
             onDismiss = { editing = null },
-            onSave = { viewModel.updateTask(it); editing = null },
+            onSave = { t, steps -> viewModel.updateTask(t, steps); editing = null },
             onDelete = { viewModel.deleteTask(task); editing = null }
         )
     }
@@ -345,7 +347,7 @@ fun DashboardScreen(
                 onDone = { viewModel.completeItem(dayItem) },
                 onSkip = { skipping = dayItem },
                 modifier = Modifier.animateItem()
-            ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }) }
+            ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }, steps = state.stepsFor(dayItem)) }
         }
 
         // Tasks with no day of their own, e.g. shopping
@@ -366,7 +368,8 @@ fun DashboardScreen(
                         onComplete = { viewModel.completeTask(task) },
                         onStartFocus = { onNavigateFocus(task.id) },
                         onEdit = { editing = task },
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.animateItem(),
+                        steps = state.stepsOf("task", task.id, task.isRecurring)
                     )
                 }
             }
@@ -380,7 +383,7 @@ fun DashboardScreen(
             if (showCompleted) {
                 items(finished, key = { "done_" + it.key }) { dayItem ->
                     Box(Modifier.animateItem()) {
-                        DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) })
+                        DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }, steps = state.stepsFor(dayItem))
                     }
                 }
             }
@@ -790,7 +793,7 @@ private fun formatMinutes(minutes: Long): String =
 
 /** A row of today's list: the task or habit, done ones struck through, skipped ones with Undo. */
 @Composable
-private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: (TaskEntity) -> Unit, onStartFocus: (Long) -> Unit) {
+private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: (TaskEntity) -> Unit, onStartFocus: (Long) -> Unit, steps: Pair<Int, Int>? = null) {
     val onUndoSkip = if (dayItem.skipped) ({ viewModel.unskipItem(dayItem) }) else null
     dayItem.task?.let { task ->
         TaskRow(
@@ -798,11 +801,15 @@ private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: 
             onComplete = { viewModel.completeTask(task) },
             onStartFocus = { onStartFocus(task.id) },
             onEdit = { onEdit(task) },
-            onUndoSkip = onUndoSkip
+            onUndoSkip = onUndoSkip,
+            steps = steps
         )
     }
     dayItem.habit?.let { habit ->
-        HabitDashboardRow(habitStatus = habit, onToggle = { viewModel.toggleHabit(habit.habit) }, onUndoSkip = onUndoSkip)
+        HabitDashboardRow(
+            habitStatus = habit, onToggle = { viewModel.toggleHabit(habit.habit) }, onUndoSkip = onUndoSkip,
+            steps = steps
+        )
     }
 }
 
@@ -864,7 +871,8 @@ fun TaskRow(
     onStartFocus: () -> Unit,
     onEdit: () -> Unit = {},
     modifier: Modifier = Modifier,
-    onUndoSkip: (() -> Unit)? = null
+    onUndoSkip: (() -> Unit)? = null,
+    steps: Pair<Int, Int>? = null
 ) {
     val diffColor = when (task.difficulty) {
         Difficulty.EASY   -> SuccessGreen
@@ -897,6 +905,7 @@ fun TaskRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DifficultyBadge(task.difficulty.name, diffColor)
                     Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    steps?.let { (done, total) -> ChecklistBadge(done, total) }
                 }
                 if (onUndoSkip != null) SkippedNote(onUndoSkip)
                 // Deadline: amber when less than an hour is left
@@ -932,7 +941,7 @@ private fun SkippedNote(onUndo: () -> Unit) {
 }
 
 @Composable
-fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndoSkip: (() -> Unit)? = null) {
+fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndoSkip: (() -> Unit)? = null, steps: Pair<Int, Int>? = null) {
     val habit = habitStatus.habit
     val struck = habitStatus.isCompletedToday || onUndoSkip != null
     GameCard {
@@ -959,8 +968,11 @@ fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndo
                         textDecoration = if (struck) TextDecoration.LineThrough else null
                     )
                 }
-                if (habitStatus.streak > 0) {
-                    Text("🔥 ${habitStatus.streak} day streak", color = WarningAmber, fontSize = 11.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (habitStatus.streak > 0) {
+                        Text("🔥 ${habitStatus.streak} day streak", color = WarningAmber, fontSize = 11.sp)
+                    }
+                    steps?.let { (done, total) -> ChecklistBadge(done, total) }
                 }
                 if (onUndoSkip != null) SkippedNote(onUndoSkip)
             }

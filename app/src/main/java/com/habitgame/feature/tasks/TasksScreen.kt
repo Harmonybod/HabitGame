@@ -25,192 +25,6 @@ import com.habitgame.core.database.entity.*
 import com.habitgame.ui.components.*
 import com.habitgame.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TasksScreen(
-    onNavigateFocus: (Long) -> Unit = {},
-    viewModel: TasksViewModel = hiltViewModel()
-) {
-    val state by viewModel.state.collectAsState()
-    val challengeEnd by viewModel.challengeEnd.collectAsState()
-    val currency by viewModel.currency.collectAsState()
-    val deadlineReminders by viewModel.deadlineReminderText.collectAsState()
-    var showAddSheet by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<TaskEntity?>(null) }
-
-    editing?.takeIf { it.isShopping }?.let { task ->
-        EditShoppingSheet(
-            task = task,
-            currency = currency,
-            reminderText = deadlineReminders,
-            onDismiss = { editing = null },
-            onSave = { viewModel.updateTask(it); editing = null },
-            onDelete = { viewModel.deleteTask(task); editing = null }
-        )
-    }
-    editing?.takeIf { !it.isShopping }?.let { task ->
-        EditTaskSheet(
-            task = task,
-            challengeEnd = challengeEnd,
-            deadlineReminders = deadlineReminders,
-            onDismiss = { editing = null },
-            onSave = { viewModel.updateTask(it); editing = null },
-            onDelete = { viewModel.deleteTask(task); editing = null }
-        )
-    }
-    val filters = listOf("All", "Pending", "Done", "Shopping", "Repeating", "Activity", "Location")
-
-    if (showAddSheet) {
-        AddTaskBottomSheet(
-            currency = currency,
-            deadlineReminders = deadlineReminders,
-            startAsShopping = state.filter == "Shopping",
-            onDismiss = { showAddSheet = false },
-            onAdd = { task -> viewModel.addTask(task); showAddSheet = false }
-        )
-    }
-
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddSheet = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) { AppIcon("Add", contentDescription = "Add Task", tint = MaterialTheme.colorScheme.onPrimary) }
-        }
-    ) { padding ->
-        Column(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(padding).padding(horizontal = 20.dp)
-        ) {
-            Spacer(Modifier.height(16.dp))
-            Text("Tasks", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-
-            ScrollableFilterRow(filters, state.filter, viewModel::setFilter)
-            Spacer(Modifier.height(12.dp))
-
-            if (state.tasks.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val shopping = state.filter == "Shopping"
-                        Text(if (shopping) "🛒" else "📋", style = MaterialTheme.typography.displayMedium)
-                        Spacer(Modifier.height(8.dp))
-                        Text(if (shopping) "Your shopping list is empty." else "No tasks here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            if (shopping) "Tap + to add something you want to buy." else "Tap + to add one!",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(state.tasks, key = { it.id }) { task ->
-                        TaskListItem(
-                            task = task,
-                            currency = currency,
-                            onComplete = { viewModel.completeTask(task) },
-                            onEdit = { editing = task },
-                            onDelete = { viewModel.deleteTask(task) },
-                            onStartFocus = { onNavigateFocus(task.id) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ScrollableFilterRow(filters: List<String>, selected: String, onSelect: (String) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(filters) { filter ->
-            FilterChip(
-                selected = filter == selected,
-                onClick = { onSelect(filter) },
-                label = { Text(filter) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun TaskListItem(task: TaskEntity, currency: String = "", onComplete: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onStartFocus: () -> Unit) {
-    val diffColor = when (task.difficulty) {
-        Difficulty.EASY   -> SuccessGreen
-        Difficulty.MEDIUM -> CyanXp
-        Difficulty.HARD   -> WarningAmber
-        Difficulty.EPIC   -> NeonPink
-    }
-    GameCard(Modifier.clickable(onClickLabel = "Edit task", onClick = onEdit)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RoundCheck(checked = task.isCompleted, onClick = onComplete, enabled = !task.isCompleted)
-            when (task.categoryType) {
-                TaskCategoryType.ACTIVITY -> com.habitgame.ui.ActivityIcon(task.activityCategory, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
-                TaskCategoryType.LOCATION -> AppIcon("LocationOn", contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                TaskCategoryType.SHOPPING -> com.habitgame.ui.PackEmoji("🛒", 26.dp)
-            }
-            Column(Modifier.weight(1f)) {
-                Text(task.name, color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                if (task.description.isNotBlank()) {
-                    Text(
-                        task.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DifficultyBadge(task.difficulty.name, diffColor)
-                    if (task.isShopping) {
-                        val price = com.habitgame.domain.tracker.ShoppingText.priceRange(task.priceMin, task.priceMax, currency)
-                        Text(
-                            listOfNotNull(price?.let { "💲 $it" }, if (task.deadlineAt == null) "no deadline" else null).joinToString(" · "),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f), fontSize = 10.sp
-                        )
-                    } else {
-                        val time = com.habitgame.domain.tracker.TaskTiming.timeOfDay(task)
-                        Text(
-                            listOfNotNull(
-                                time?.let { (if (task.notifyEnabled) "🔔 " else "") + com.habitgame.domain.tracker.TaskTiming.formatTime(it) },
-                                if (task.isRecurring) com.habitgame.domain.tracker.TaskTiming.repeatRule(task).describe() else "once"
-                            ).joinToString(" · "),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f), fontSize = 10.sp
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                }
-                // Deadline: amber when less than an hour is left
-                if (!task.isCompleted) task.deadlineAt?.let { deadline ->
-                    val soon = deadline - System.currentTimeMillis() < 60 * 60_000L
-                    Text(
-                        (if (task.isShopping) "⏳ Buy " else "⏰ Due ") + com.habitgame.domain.tracker.ShoppingText.deadline(deadline),
-                        color = if (soon) WarningAmber.readable() else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = if (soon) FontWeight.SemiBold else FontWeight.Normal,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-            if (task.hasFocusTimer && !task.isCompleted) {
-                Button(
-                    onClick = onStartFocus,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("Start", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-            }
-            IconButton(onClick = onDelete) {
-                AppIcon("Delete", contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f))
-            }
-        }
-    }
-}
-
 /**
  * A one-time task due at a set time: that moment is its deadline, which drives the reminders before it.
  * [dateMillis] is the date picker's UTC midnight (null = today); [timeMillis] a time of day.
@@ -239,10 +53,14 @@ fun AddTaskBottomSheet(
     currency: String = "",
     deadlineReminders: String = "1 h, 15 min and 5 min before",
     startAsShopping: Boolean = false,
+    areas: List<AreaEntity> = emptyList(),
+    initialArea: String = "",
     onDismiss: () -> Unit,
-    onAdd: (TaskEntity) -> Unit
+    onAdd: (TaskEntity, List<String>) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var area by remember { mutableStateOf(initialArea) }
+    var checklist by remember { mutableStateOf(emptyList<String>()) }
     var description by remember { mutableStateOf("") }
     // Off: a one-time task with no day, done whenever (it then doesn't count on the 100-day board)
     var hasDueDate by remember { mutableStateOf(false) }
@@ -349,6 +167,10 @@ fun AddTaskBottomSheet(
                 )
             )
             if (!shopping) DescriptionField(description) { description = it }
+            if (!shopping) {
+                AreaPicker(areas, area) { area = it }
+                ChecklistEditor(checklist) { checklist = it }
+            }
 
             // Difficulty
             Text("Difficulty", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
@@ -560,7 +382,8 @@ fun AddTaskBottomSheet(
                                     coinReward = com.habitgame.domain.engine.EconomyManager.coinsForDifficulty(difficulty).toInt(),
                                     isAllDay = true, notifyEnabled = false, focusDurationMinutes = 0
                                 )
-                            )
+                            ),
+                            emptyList()
                         )
                     } else if (name.isNotBlank() && !shopping) {
                         val xp = com.habitgame.domain.engine.EconomyManager.xpForDifficulty(difficulty)
@@ -591,8 +414,9 @@ fun AddTaskBottomSheet(
                             notifyAtMillis = timeMillis,
                             locationZoneId = if (categoryType == TaskCategoryType.LOCATION) selectedLocationZoneId else null,
                             focusDurationMinutes = if (categoryType == TaskCategoryType.ACTIVITY) focusMinutes else 0,
-                            deadlineAt = dueDeadline(repetition == RepetitionType.ONE_TIME && hasDueDate, selectedDateMillis, timeMillis)
-                        ))
+                            deadlineAt = dueDeadline(repetition == RepetitionType.ONE_TIME && hasDueDate, selectedDateMillis, timeMillis),
+                            groupName = area
+                        ), checklist.map { it.trim() }.filter { it.isNotEmpty() })
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),

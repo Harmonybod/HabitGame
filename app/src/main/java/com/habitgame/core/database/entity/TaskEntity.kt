@@ -52,7 +52,9 @@ data class TaskEntity(
     // An item that isn't bought by its deadline is removed.
     @ColumnInfo(defaultValue = "0") val priceMin: Double = 0.0,
     @ColumnInfo(defaultValue = "0") val priceMax: Double = 0.0,
-    val deadlineAt: Long? = null
+    val deadlineAt: Long? = null,
+    // Area (folder) on the Habits page, e.g. "Weight gain"; "" = none
+    @ColumnInfo(defaultValue = "") val groupName: String = ""
 ) {
     val isShopping: Boolean
         get() = categoryType == TaskCategoryType.SHOPPING

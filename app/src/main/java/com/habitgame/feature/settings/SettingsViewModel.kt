@@ -46,6 +46,8 @@ class SettingsViewModel @Inject constructor(
     private val noteDao: com.habitgame.core.database.dao.NoteDao,
     private val rewardClaimDao: com.habitgame.core.database.dao.RewardClaimDao,
     private val daySkipDao: com.habitgame.core.database.dao.DaySkipDao,
+    private val areaDao: com.habitgame.core.database.dao.AreaDao,
+    private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -201,6 +203,8 @@ class SettingsViewModel @Inject constructor(
         noteDao.deleteAll()
         rewardClaimDao.deleteAll()
         daySkipDao.deleteAll()
+        areaDao.deleteAll()
+        checklistDao.deleteAll()
         userRepo.deleteAll()  // Also re-creates a fresh UserEntity
         economyRepo.seedDefaultShop()
         trackerManager.runDailyMaintenance()  // fresh 100-day challenge starting today

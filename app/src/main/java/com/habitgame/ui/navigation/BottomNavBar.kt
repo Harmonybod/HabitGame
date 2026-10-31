@@ -14,12 +14,13 @@ fun HabitGameBottomBar(navController: NavHostController, iconPack: String = "def
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = navBackStackEntry?.destination
 
-    // Profile opens from the avatar on Home, leaving room for Journal and Savings
+    // Profile opens from the avatar on Home, leaving room for Journal and Savings.
+    // Habits holds tasks too, in folders by area.
     val routes = listOf(
-        Triple("dashboard", "Home",    "dashboard"),
-        Triple("tasks",     "Tasks",   "tasks"),
-        Triple("habits",    "Habits",  "habits"),
-        Triple("journal",   "Journal", "journal"),
+        Triple("dashboard", "Home",     "dashboard"),
+        Triple("habits",    "Habits",   "habits"),
+        Triple("progress",  "Progress", "progress"),
+        Triple("journal",   "Journal",  "journal"),
         Triple("notes",     "Notes",   "notes"),
         Triple("savings",   "Savings", "savings"),
         Triple("shop",      "Shop",    "shop")

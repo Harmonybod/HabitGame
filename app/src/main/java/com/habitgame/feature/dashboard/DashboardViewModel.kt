@@ -76,8 +76,19 @@ data class DashboardUiState(
     val selectedDay: Int? = null,
     val homeNotes: List<HabitEntity> = emptyList(),  // habits with "Show on Home" turned on
     val sessions: List<com.habitgame.domain.engine.ActiveSession> = emptyList(),  // running Shop timers
-    val charts: WeekCharts = WeekCharts()  // this week's XP and savings graphs
-)
+    val charts: WeekCharts = WeekCharts(),  // this week's XP and savings graphs
+    val areas: List<com.habitgame.core.database.entity.AreaEntity> = emptyList(),
+    val steps: Map<String, List<com.habitgame.core.database.entity.ChecklistItemEntity>> = emptyMap()  // checklists by "task:3" / "habit:5"
+) {
+    /** "2 of 5" for a row's checklist, or null without one. */
+    fun stepsOf(kind: String, id: Long, repeats: Boolean): Pair<Int, Int>? =
+        steps["$kind:$id"]?.takeIf { it.isNotEmpty() }?.let {
+            com.habitgame.domain.engine.Checklist.progress(it, repeats, LocalDate.now().toString()) to it.size
+        }
+
+    fun stepsFor(item: DayItem): Pair<Int, Int>? =
+        item.task?.let { stepsOf("task", it.id, it.isRecurring) } ?: item.habit?.let { stepsOf("habit", it.habit.id, true) }
+}
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
@@ -94,6 +105,9 @@ class DashboardViewModel @Inject constructor(
     private val focusRepo: com.habitgame.core.database.repository.FocusSessionRepository,
     private val focusTimer: com.habitgame.domain.focus.FocusTimer,
     private val skipDao: com.habitgame.core.database.dao.DaySkipDao,
+    private val areaRepo: com.habitgame.core.database.repository.AreaRepository,
+    private val checklistManager: com.habitgame.domain.engine.ChecklistManager,
+    checklistDao: com.habitgame.core.database.dao.ChecklistDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -115,6 +129,10 @@ class DashboardViewModel @Inject constructor(
         observeWeekCharts()
         viewModelScope.launch {
             boosterManager.observeActiveSessions().collect { sessions -> _state.update { it.copy(sessions = sessions) } }
+        }
+        viewModelScope.launch { areaRepo.areas.collect { areas -> _state.update { it.copy(areas = areas) } } }
+        viewModelScope.launch {
+            checklistDao.observeAll().collect { items -> _state.update { it.copy(steps = items.groupBy { item -> item.ownerKey }) } }
         }
     }
 
@@ -275,13 +293,18 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun updateTask(task: TaskEntity) {
-        viewModelScope.launch { trackerManager.saveTask(task) }
+    fun updateTask(task: TaskEntity, steps: List<String>? = null) {
+        viewModelScope.launch {
+            areaRepo.ensure(task.groupName)
+            steps?.let { checklistManager.save(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, it) }
+            trackerManager.saveTask(task)
+        }
     }
 
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch {
             taskRepo.deleteTask(task)
+            checklistManager.delete(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id)
             com.habitgame.domain.notification.TaskReminderWorker.cancelReminder(context, task.id)
             trackerManager.snapshotToday()
         }

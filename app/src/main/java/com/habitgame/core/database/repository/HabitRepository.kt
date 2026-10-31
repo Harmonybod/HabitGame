@@ -27,6 +27,9 @@ class HabitRepository @Inject constructor(
     fun observeCompletionsForDate(date: String): Flow<List<HabitCompletionEntity>> =
         completionDao.observeCompletionsForDate(date)
 
+    /** Every tick ever, for the Progress page. */
+    fun observeAllCompletions(): Flow<List<HabitCompletionEntity>> = completionDao.observeAll()
+
     suspend fun isHabitCompletedToday(habitId: Long): Boolean {
         val today = LocalDate.now().toString()
         return completionDao.getCompletionForHabitOnDate(habitId, today) != null

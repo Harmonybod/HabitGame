@@ -23,7 +23,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11, AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14)
+            .addMigrations(AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11, AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -46,4 +46,6 @@ object DatabaseModule {
     @Provides fun provideNoteDao(db: AppDatabase): NoteDao = db.noteDao()
     @Provides fun provideRewardClaimDao(db: AppDatabase): RewardClaimDao = db.rewardClaimDao()
     @Provides fun provideDaySkipDao(db: AppDatabase): DaySkipDao = db.daySkipDao()
+    @Provides fun provideAreaDao(db: AppDatabase): AreaDao = db.areaDao()
+    @Provides fun provideChecklistDao(db: AppDatabase): ChecklistDao = db.checklistDao()
 }

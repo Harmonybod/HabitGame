@@ -22,6 +22,8 @@ interface TransferDao {
     @Query("SELECT * FROM notes") suspend fun notes(): List<NoteEntity>
     @Query("SELECT * FROM reward_claims") suspend fun rewardClaims(): List<RewardClaimEntity>
     @Query("SELECT * FROM day_skips") suspend fun daySkips(): List<DaySkipEntity>
+    @Query("SELECT * FROM areas") suspend fun areas(): List<AreaEntity>
+    @Query("SELECT * FROM checklist_items") suspend fun checklistItems(): List<ChecklistItemEntity>
     @Query("SELECT name FROM reward_items WHERE category = 'COSMETIC' AND isOwned = 1") suspend fun ownedCosmetics(): List<String>
 
     @Query("DELETE FROM tasks") suspend fun clearTasks()
@@ -37,6 +39,8 @@ interface TransferDao {
     @Query("DELETE FROM notes") suspend fun clearNotes()
     @Query("DELETE FROM reward_claims") suspend fun clearRewardClaims()
     @Query("DELETE FROM day_skips") suspend fun clearDaySkips()
+    @Query("DELETE FROM areas") suspend fun clearAreas()
+    @Query("DELETE FROM checklist_items") suspend fun clearChecklistItems()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putTasks(items: List<TaskEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putHabits(items: List<HabitEntity>)
@@ -51,6 +55,8 @@ interface TransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putNotes(items: List<NoteEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putRewardClaims(items: List<RewardClaimEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putDaySkips(items: List<DaySkipEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putAreas(items: List<AreaEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putChecklistItems(items: List<ChecklistItemEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putChallenge(challenge: ChallengeEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putUser(user: UserEntity)
 

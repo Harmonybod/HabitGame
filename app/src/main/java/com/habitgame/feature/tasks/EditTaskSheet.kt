@@ -35,10 +35,14 @@ fun EditTaskSheet(
     task: TaskEntity,
     challengeEnd: LocalDate?,
     deadlineReminders: String = "1 h, 15 min and 5 min before",
+    areas: List<com.habitgame.core.database.entity.AreaEntity> = emptyList(),
+    checklist: List<String> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (TaskEntity) -> Unit,
+    onSave: (TaskEntity, List<String>) -> Unit,
     onDelete: () -> Unit
 ) {
+    var area by remember(task.id) { mutableStateOf(task.groupName) }
+    var steps by remember(task.id) { mutableStateOf(checklist) }
     val rule = remember(task.id) { TaskTiming.repeatRule(task) }
     var name by remember(task.id) { mutableStateOf(task.name) }
     var description by remember(task.id) { mutableStateOf(task.description) }
@@ -88,6 +92,8 @@ fun EditTaskSheet(
                 colors = fieldColors()
             )
             DescriptionField(description) { description = it }
+            AreaPicker(areas, area) { area = it }
+            ChecklistEditor(steps) { steps = it }
 
             if (isSavings) {
                 OutlinedTextField(
@@ -162,8 +168,10 @@ fun EditTaskSheet(
                             savingAmount = if (isSavings) amountText.toDoubleOrNull() ?: 0.0 else task.savingAmount,
                             // A due time on a one-time task is its deadline: reminders before it
                             deadlineAt = if (!repeating && hasDueDate) chosenTime?.let { TaskTiming.millisOf(onceDate.atTime(it)) } else null,
-                            focusDurationMinutes = if (canFocus) focusMinutes else task.focusDurationMinutes
-                        )
+                            focusDurationMinutes = if (canFocus) focusMinutes else task.focusDurationMinutes,
+                            groupName = area
+                        ),
+                        steps.map { it.trim() }.filter { it.isNotEmpty() }
                     )
                 },
                 onDelete = onDelete

@@ -25,7 +25,6 @@ import com.habitgame.feature.profile.ProfileScreen
 import com.habitgame.feature.savings.SavingsScreen
 import com.habitgame.feature.settings.*
 import com.habitgame.feature.shop.ShopScreen
-import com.habitgame.feature.tasks.TasksScreen
 import com.habitgame.feature.setup.AppSetupScreen
 import com.habitgame.ui.IconProvider
 import com.habitgame.ui.LocalIconPack
@@ -58,13 +57,27 @@ fun HabitGameNavGraph(navController: NavHostController) {
                 onNavigateProgress = { navController.navigate("progress") { launchSingleTop = true } }
             )
         }
+        // Habits and tasks on one page; "tasks" opens it showing tasks
+        val openTemplates: (String) -> Unit = { area -> navController.navigate("templates?area=" + android.net.Uri.encode(area)) }
+        val openFocus: (Long) -> Unit = { taskId -> navController.navigate("focus?taskId=$taskId") }
+        composable("habits") {
+            ScreenFrame { HabitsScreen(onOpenTemplates = openTemplates, onNavigateFocus = openFocus) }
+        }
         composable("tasks") {
             ScreenFrame {
-                TasksScreen(onNavigateFocus = { taskId -> navController.navigate("focus?taskId=$taskId") })
+                HabitsScreen(onOpenTemplates = openTemplates, onNavigateFocus = openFocus, startFilter = com.habitgame.feature.habits.PlanFilter.Tasks)
             }
         }
-        composable("habits") {
-            ScreenFrame { HabitsScreen() }
+        composable(
+            "templates?area={area}",
+            arguments = listOf(navArgument("area") { type = NavType.StringType; defaultValue = "" })
+        ) { entry ->
+            ScreenFrame {
+                com.habitgame.feature.habits.TemplatesScreen(
+                    area = entry.arguments?.getString("area").orEmpty(),
+                    onDone = goBack
+                )
+            }
         }
         composable("journal") {
             ScreenFrame { JournalScreen() }

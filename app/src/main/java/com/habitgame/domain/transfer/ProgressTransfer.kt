@@ -37,7 +37,9 @@ data class TransferPayload(
     val focusSessions: List<FocusSessionEntity>? = null,  // null in codes from before 2.2
     val notes: List<NoteEntity>? = null,                   // null in codes from before 2.3
     val rewardClaims: List<RewardClaimEntity>? = null,     // null in codes from before 2.7
-    val daySkips: List<DaySkipEntity>? = null              // null in codes from before 2.8
+    val daySkips: List<DaySkipEntity>? = null,             // null in codes from before 2.8
+    val areas: List<AreaEntity>? = null,                   // null in codes from before 3.0
+    val checklistItems: List<ChecklistItemEntity>? = null  // null in codes from before 3.0
 )
 
 /**
@@ -75,7 +77,9 @@ class ProgressTransfer @Inject constructor(
             focusSessions = dao.focusSessions(),
             notes = dao.notes(),
             rewardClaims = dao.rewardClaims(),
-            daySkips = dao.daySkips()
+            daySkips = dao.daySkips(),
+            areas = dao.areas(),
+            checklistItems = dao.checklistItems()
         )
         return encode(gson.toJson(payload))
     }
@@ -117,6 +121,10 @@ class ProgressTransfer @Inject constructor(
             payload.notes?.let { dao.clearNotes(); dao.putNotes(it) }
             payload.rewardClaims?.let { dao.clearRewardClaims(); dao.putRewardClaims(it) }
             payload.daySkips?.let { dao.clearDaySkips(); dao.putDaySkips(it) }
+            // Older codes have no areas (habit groups still show as areas) and no checklists
+            dao.clearAreas(); dao.clearChecklistItems()
+            payload.areas?.let { dao.putAreas(it) }
+            payload.checklistItems?.let { dao.putChecklistItems(it) }
             payload.challenge?.let { dao.putChallenge(it) }
             // Photos are files on this phone, so keep this phone's own
             dao.putUser(
