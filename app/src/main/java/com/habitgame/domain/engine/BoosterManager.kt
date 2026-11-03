@@ -54,6 +54,10 @@ class BoosterManager @Inject constructor(
         const val NO_RESTRICTION = "NO_RESTRICTION"
         const val STREAK_FREEZE = "STREAK_FREEZE"
 
+        /** Coin Rush and Double XP. */
+        const val COIN_MULTIPLIER = 2.5f
+        const val XP_MULTIPLIER = 2.0f
+
         private const val DAY_MILLIS = 24 * 60 * 60_000L
 
         /** How long a timed item lasts. Items without a duration (Streak Freeze) last a day. */
@@ -125,10 +129,10 @@ class BoosterManager @Inject constructor(
     suspend fun hasActiveUnlock(): Boolean = activeSessions().any { it.unlocksApps }
 
     /** XP multiplier: 2× while Double XP is running. */
-    suspend fun xpMultiplier(): Float = if (isRunning(DOUBLE_XP)) 2.0f else 1.0f
+    suspend fun xpMultiplier(): Float = if (isRunning(DOUBLE_XP)) XP_MULTIPLIER else 1.0f
 
     /** Coin multiplier: 2.5× while Coin Rush is running. */
-    suspend fun coinMultiplier(): Float = if (isRunning(DOUBLE_COINS)) 2.5f else 1.0f
+    suspend fun coinMultiplier(): Float = if (isRunning(DOUBLE_COINS)) COIN_MULTIPLIER else 1.0f
 
     suspend fun isNoRestrictionActive(): Boolean = isRunning(NO_RESTRICTION)
 

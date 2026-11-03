@@ -54,7 +54,8 @@ fun HabitGameNavGraph(navController: NavHostController) {
                 onNavigateProfile = { navController.navigate("profile") },
                 onNavigateSettings = { navController.navigate("settings") },
                 onNavigateLevels = { navController.navigate("levels") { launchSingleTop = true } },
-                onNavigateProgress = { navController.navigate("progress") { launchSingleTop = true } }
+                onNavigateProgress = { navController.navigate("progress") { launchSingleTop = true } },
+                onNavigateTemplates = { navController.navigate("templates?area=") { launchSingleTop = true } }
             )
         }
         // Habits and tasks on one page; "tasks" opens it showing tasks

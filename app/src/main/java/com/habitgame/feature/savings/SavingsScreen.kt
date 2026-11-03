@@ -242,7 +242,7 @@ private fun GoalDialog(goal: Double, currency: String, onDismiss: () -> Unit, on
                     label = { Text("Currency symbol (optional)") }, placeholder = { Text("$, €, ETB…") }, singleLine = true,
                     colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                 )
-                Text("Your daily “Put money aside” task will be set to goal ÷ 100.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Your own goal: a daily “Put money aside” task saving goal ÷ 100 is added to Habits (or updated). Change it any time.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = { TextButton(onClick = { onSave(goalText.toDoubleOrNull() ?: 0.0, currencyText) }) { Text("Save") } },

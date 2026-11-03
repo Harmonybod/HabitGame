@@ -154,29 +154,6 @@ fun GeneralSettingsScreen(
             GameCard { SyncSection(showSignOut = false) }
         }
         item {
-            // Just the badge in use until "Show all"
-            var showAllBadges by rememberSaveable { mutableStateOf(false) }
-            SettingsSectionHeader("🏅 Badge next to your name")
-            GameCard {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Shop badges and earned achievements can both be worn
-                    val earned = progress.badges.filter { it.unlocked }
-                    val current = state.badges.firstOrNull { it.badgeKey == user.selectedBadge }
-                    val currentEarned = if (current == null) earned.firstOrNull { it.emoji == user.selectedBadge } else null
-                    if (showAllBadges || (current == null && currentEarned == null)) {
-                        ThemeRow("➖ No badge", "Nothing next to your name", user.selectedBadge.isEmpty(), false) { viewModel.setBadge("") }
-                    }
-                    (if (showAllBadges) earned else listOfNotNull(currentEarned)).forEach { badge ->
-                        ThemeRow("${badge.emoji} ${badge.name}", "Earned: ${badge.description}", user.selectedBadge == badge.emoji, false) { viewModel.setBadge(badge.emoji) }
-                    }
-                    (if (showAllBadges) state.badges else listOfNotNull(current)).forEach { badge ->
-                        ShopItemRow(badge, selected = user.selectedBadge == badge.badgeKey) { viewModel.setBadge(badge.badgeKey) }
-                    }
-                    ShowMoreButton(showAllBadges, "Show all ${state.badges.size + earned.size} badges") { showAllBadges = it }
-                }
-            }
-        }
-        item {
             // Just the ones earned until "Show all"
             var showAllAchievements by rememberSaveable { mutableStateOf(false) }
             val unlocked = progress.badges.filter { it.unlocked }
@@ -448,17 +425,23 @@ private val ACCENTS = listOf(
     "#607D8B" to "Slate"
 )
 
-/** Themes (with previews), Glass, icon packs, accent colour and home-screen widgets. */
+/** Themes (with previews), Glass, icon packs, your badge, accent colour and home-screen widgets. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CustomizationScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun CustomizationScreen(
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
+    profile: ProfileViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
+    val progress by profile.state.collectAsState()
     val user = state.user
     val shopThemes = state.themes.associateBy { it.themeKey }
 
     var openThemes by rememberSaveable { mutableStateOf(false) }
     var openGlass by rememberSaveable { mutableStateOf(false) }
     var openIcons by rememberSaveable { mutableStateOf(false) }
+    var openBadges by rememberSaveable { mutableStateOf(false) }
     var openWidgets by rememberSaveable { mutableStateOf(false) }
 
     SettingsPage("Customization", onBack) {
@@ -542,6 +525,33 @@ fun CustomizationScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltV
                     ThemeRow("📦 Default", "Standard icons", user.selectedIconPack == "default", false) { viewModel.setIconPack("default") }
                     state.iconPacks.forEach { pack ->
                         ShopItemRow(pack, selected = user.selectedIconPack == pack.iconPackKey) { viewModel.setIconPack(pack.iconPackKey) }
+                    }
+                }
+            }
+        }
+
+        // The badge next to your name: one from the Shop, or an achievement you've earned
+        item {
+            val earned = progress.badges.filter { it.unlocked }
+            val current = state.badges.firstOrNull { it.badgeKey == user.selectedBadge }?.let { "${it.badgeKey} ${it.name}" }
+                ?: earned.firstOrNull { it.emoji == user.selectedBadge }?.let { "${it.emoji} ${it.name}" }
+                ?: "None"
+            val owned = state.badges.count { it.isOwned } + earned.size
+            CategoryHeader("🏅", "Badge next to your name", "$current · $owned to choose from", openBadges) { openBadges = !openBadges }
+        }
+        if (openBadges) item {
+            GameCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Shown next to your name on Home and your profile. Buy more in the Shop → Cosmetic → Badges, or earn achievements.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                    )
+                    ThemeRow("➖ No badge", "Nothing next to your name", user.selectedBadge.isEmpty(), false) { viewModel.setBadge("") }
+                    progress.badges.filter { it.unlocked }.forEach { badge ->
+                        ThemeRow("${badge.emoji} ${badge.name}", "Earned: ${badge.description}", user.selectedBadge == badge.emoji, false) { viewModel.setBadge(badge.emoji) }
+                    }
+                    state.badges.sortedByDescending { it.isOwned }.forEach { badge ->
+                        ShopItemRow(badge, selected = user.selectedBadge == badge.badgeKey) { viewModel.setBadge(badge.badgeKey) }
                     }
                 }
             }

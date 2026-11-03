@@ -3,7 +3,7 @@ package com.habitgame.domain.tracker
 import com.habitgame.core.database.entity.ActivityCategory
 import com.habitgame.core.database.entity.Difficulty
 
-/** Content of the "My 100 Days" tracker: phases, coding plan, journal prompts and the default checklist. */
+/** Content of the "My 100 Days" tracker: phases, journal prompts, and keys of tasks made by earlier versions. */
 object TrackerPlan {
     const val TOTAL_DAYS = 100
 
@@ -16,9 +16,9 @@ object TrackerPlan {
     val PHASES = listOf(
         Phase(10, "Days 1–10: Show up", "Don't aim for perfect. Aim to check in every single day."),
         Phase(30, "Days 11–30: Build the rhythm", "Habits stick around now. Keep the same time each morning."),
-        Phase(50, "Days 31–50: Push a little", "Add five more minutes to coding or reading."),
+        Phase(50, "Days 31–50: Push a little", "Add five more minutes to the habit you enjoy most."),
         Phase(75, "Days 51–75: The quiet middle", "Motivation dips here. Reread your early journal entries."),
-        Phase(99, "Days 76–99: Finish strong", "Start a small coding project you can show off on day 100."),
+        Phase(99, "Days 76–99: Finish strong", "Pick one thing to show for your 100 days and finish it."),
         Phase(100, "Day 100: You did it", "Read your whole journal and write a letter to your future self.")
     )
 
@@ -42,31 +42,7 @@ object TrackerPlan {
     fun phaseFor(day: Int): Phase = PHASES.first { day <= it.lastDay }
     fun promptFor(day: Int): String = PROMPTS[(day.coerceAtLeast(1) - 1) % PROMPTS.size]
 
-    /** A checklist item from the web tracker, turned into a repeating game task. */
-    data class SeedTask(
-        val key: String,
-        val name: String,
-        val hour: Int,
-        val minute: Int,
-        val category: ActivityCategory,
-        val difficulty: Difficulty = Difficulty.EASY,
-        val focusMinutes: Int = 0,
-        val description: String = ""
-    )
-
-    val SEED_TASKS = listOf(
-        // Daily habits
-        SeedTask("habit_bed", "Make my bed", 7, 30, ActivityCategory.OTHER),
-        SeedTask("habit_water", "Drink water", 10, 0, ActivityCategory.OTHER),
-        SeedTask("habit_coding", "Practice coding", 17, 0, ActivityCategory.CODING, Difficulty.MEDIUM, focusMinutes = 30),
-        SeedTask("habit_read", "Read", 21, 0, ActivityCategory.READING, focusMinutes = 20),
-        SeedTask("habit_body", "Take care of my body", 21, 45, ActivityCategory.OTHER),
-        // Savings
-        SeedTask("save_daily", "Put money aside today", 20, 0, ActivityCategory.SAVINGS,
-            description = "Set your savings goal in the Savings tab.")
-    )
-
-    /** The weight gain schedule lives on the Habits tab. */
+    /** The weight gain habits: earlier versions put them on every install; now a ready-made folder. */
     data class SeedHabit(
         val key: String,
         val name: String,
@@ -88,6 +64,7 @@ object TrackerPlan {
         SeedHabit("wg_bedtime", "Small bedtime snack (milk, nuts)", "🥛", 21, 30)
     )
 
+    // Tasks made by earlier versions, and the daily savings task made when a goal is set
     const val CODING_TASK_KEY = "habit_coding"
     const val SAVINGS_TASK_KEY = "save_daily"
 }

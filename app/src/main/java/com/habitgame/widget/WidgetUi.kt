@@ -77,6 +77,8 @@ object WidgetUpdater {
         CharacterWidget().updateAll(context)
         BoardWidget().updateAll(context)
         SavingsWidget().updateAll(context)
+        SavingsMiniWidget().updateAll(context)
+        RhythmWidget().updateAll(context)
     }
 
     /** Ask for a redraw; bursts of changes (e.g. finishing a task) become one redraw. */

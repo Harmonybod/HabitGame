@@ -123,7 +123,7 @@ fun JournalScreen(viewModel: JournalViewModel = hiltViewModel()) {
         // Weight
         item {
             GameCard {
-                Text("Weight gain", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("⚖️ Body weight (optional)", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                 Text("Your meals and workout are in Habits. Log your weight here.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(

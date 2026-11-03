@@ -32,6 +32,7 @@ import com.habitgame.ui.theme.WarningAmber
 import com.habitgame.ui.theme.readable
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -154,6 +155,7 @@ fun ProgressScreen(viewModel: ProgressViewModel = hiltViewModel()) {
                         SectionTitle("📆", "Weekly rhythm", "", "")
                         Explain("How often habits get done on each weekday. ", "The darkest bar is your best day.")
                         WeekdayBars(state.rhythm, primary)
+                        AddWidgetButton("Weekly rhythm", com.habitgame.widget.RhythmWidgetReceiver::class.java)
                     }
                 }
                 if (state.zones.isNotEmpty()) item(key = "zones") {
@@ -340,6 +342,21 @@ fun ProgressScreen(viewModel: ProgressViewModel = hiltViewModel()) {
         }
         item(key = "end") { Spacer(Modifier.height(24.dp)) }
     }
+}
+
+/** "+ Add to home screen": places this chart's widget on the home screen (where the launcher allows it). */
+@Composable
+private fun AddWidgetButton(name: String, receiver: Class<out androidx.glance.appwidget.GlanceAppWidgetReceiver>) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var hint by remember { mutableStateOf<String?>(null) }
+    TextButton(onClick = {
+        scope.launch {
+            val asked = runCatching { androidx.glance.appwidget.GlanceAppWidgetManager(context).requestPinGlanceAppWidget(receiver) }.getOrDefault(false)
+            hint = if (asked) null else "Long-press your home screen → Widgets → HabitGame → $name."
+        }
+    }, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("📌 Add to home screen", fontWeight = FontWeight.SemiBold) }
+    hint?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
 }
 
 /** "Patterns ▾": a section title you can fold away. */

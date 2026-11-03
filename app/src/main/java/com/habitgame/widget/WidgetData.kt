@@ -32,6 +32,7 @@ interface WidgetEntryPoint {
     fun trackerRepo(): TrackerRepository
     fun habitManager(): HabitManager
     fun taskCompletionManager(): TaskCompletionManager
+    fun daySkipDao(): com.habitgame.core.database.dao.DaySkipDao
 }
 
 fun widgetDeps(context: Context): WidgetEntryPoint =
@@ -106,6 +107,23 @@ object WidgetData {
             daysLeft = TrackerPlan.TOTAL_DAYS - day + 1
         )
     }
+
+    /** How often habits got done on each weekday over the last [RHYTHM_DAYS] days, Monday first (as on Progress). */
+    suspend fun rhythm(context: Context): List<com.habitgame.domain.tracker.HabitRate> {
+        val deps = widgetDeps(context)
+        val today = LocalDate.now()
+        val dates = (RHYTHM_DAYS - 1 downTo 0).map { today.minusDays(it.toLong()) }
+        val done = deps.habitRepo().observeAllCompletions().first().groupBy { it.habitId }.mapValues { (_, l) -> l.map { it.date }.toSet() }
+        val skipped = deps.daySkipDao().observeAll().first()
+            .filter { it.kind == com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT }
+            .groupBy { it.itemId }.mapValues { (_, l) -> l.map { it.date }.toSet() }
+        val perHabit = deps.habitRepo().observeActiveHabits().first().map { h ->
+            com.habitgame.domain.tracker.HabitStats.days(h, dates, today, done[h.id].orEmpty(), skipped[h.id].orEmpty())
+        }
+        return com.habitgame.domain.tracker.HabitStats.weeklyRhythm(perHabit, dates)
+    }
+
+    const val RHYTHM_DAYS = 28
 
     fun xpFraction(user: UserEntity): Float {
         val needed = UserProgressEngine.xpRequired(user.level)

@@ -267,7 +267,8 @@ fun HabitGameContent(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = { HabitGameBottomBar(navController, iconPack = iconPack) }
     ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
+        // The bottom bar's room counts as used, so a screen's imePadding only adds what the keyboard covers beyond it
+        Box(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
             HabitGameNavGraph(navController)
         }
     }

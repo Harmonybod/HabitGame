@@ -35,7 +35,7 @@ internal fun SettingsSectionHeader(title: String) {
         style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
 }
 
-/** The four home-screen widgets, each with a button that places it on the home screen. */
+/** The home-screen widgets, each with a button that places it on the home screen. */
 @Composable
 internal fun WidgetsSection() {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -45,7 +45,9 @@ internal fun WidgetsSection() {
         Triple("✅ Today's checklist", "Tick off today's tasks and habits from your home screen", com.habitgame.widget.ChecklistWidgetReceiver::class.java),
         Triple("🛡️ Character card", "Your rank, level, XP, coins and streak", com.habitgame.widget.CharacterWidgetReceiver::class.java),
         Triple("🟡 100-day board", "Your 100 circles, filling up day by day", com.habitgame.widget.BoardWidgetReceiver::class.java),
-        Triple("💰 Savings jar", "Money saved toward your goal, with a quick Add button", com.habitgame.widget.SavingsWidgetReceiver::class.java)
+        Triple("💰 Savings jar", "Money saved toward your goal, with a quick Add button", com.habitgame.widget.SavingsWidgetReceiver::class.java),
+        Triple("💰 Savings (small)", "A slim 2×1 bar: saved so far and how close the goal is", com.habitgame.widget.SavingsMiniWidgetReceiver::class.java),
+        Triple("📊 Weekly rhythm", "Your best and worst weekdays for habits, from Progress", com.habitgame.widget.RhythmWidgetReceiver::class.java)
     )
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(

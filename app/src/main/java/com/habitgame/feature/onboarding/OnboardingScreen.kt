@@ -133,7 +133,7 @@ private fun StepIllustration(page: Int) {
             HundredDayBoard(scores = demo, currentDay = 7, selectedDay = null, onDayClick = {}, modifier = Modifier.width(260.dp))
         }
         1 -> GameCard(Modifier.width(300.dp)) {
-            listOf("7:30 AM" to "Make my bed", "8:00 AM" to "Breakfast with protein", "5:00 PM" to "Practice coding")
+            listOf("7:00 AM" to "Brush teeth", "6:00 PM" to "Go for a walk", "9:00 PM" to "Read 10 pages")
                 .forEachIndexed { i, (time, name) ->
                     Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         RoundCheck(checked = i < 2, onClick = {}, enabled = false)

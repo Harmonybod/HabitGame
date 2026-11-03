@@ -148,6 +148,8 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel()) {
                         }
                     }
                     list = list.filter { it.subcategory.name == cosmeticGroup }
+                    // AMOLED and Glass first
+                    if (cosmeticGroup == "THEME") list = list.sortedBy { ShopRules.themeRank(it) }
                 }
                 items(list, key = { it.id }) { item ->
                     ShopItemCard(
@@ -159,7 +161,8 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel()) {
                         onActivate = { viewModel.activateReward(item) },
                         onApply = { viewModel.applyCosmetic(item) },
                         onRemove = { viewModel.resetCosmetic(item) },
-                        onExtend = viewModel::extendSession
+                        onExtend = viewModel::extendSession,
+                        lockReason = ShopRules.lockReason(item, state.user.level, state.signedIn)
                     )
                 }
             }
@@ -203,9 +206,10 @@ fun ShopItemCard(
     onActivate: () -> Unit,
     onApply: () -> Unit,
     onRemove: () -> Unit,
-    onExtend: ((ActiveSession) -> Unit)? = null
+    onExtend: ((ActiveSession) -> Unit)? = null,
+    lockReason: String? = null   // what else it needs before it can be bought
 ) {
-    val canAfford = user.totalCoins >= item.cost
+    val canAfford = user.totalCoins >= item.cost && lockReason == null
     val isCosmeticPack = item.themeKey.isNotEmpty() || item.iconPackKey.isNotEmpty() || item.badgeKey.isNotEmpty()
     val inUse = (item.themeKey == "glass" && user.glassEnabled) ||
         (item.themeKey.isNotEmpty() && user.selectedTheme == item.themeKey) ||
@@ -241,6 +245,10 @@ fun ShopItemCard(
                         item.isOwned -> Tag("OWNED", SuccessGreen.readable())
                     }
                 }
+                if (lockReason != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text("🔒 $lockReason", color = WarningAmber.readable(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
                 // Live countdown while it runs
                 if (session != null) {
                     Spacer(Modifier.height(8.dp))
@@ -254,7 +262,7 @@ fun ShopItemCard(
                     colors = ButtonDefaults.buttonColors(containerColor = GoldDim, contentColor = BgDark, disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(10.dp)
-                ) { Text("Buy", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                ) { Text(if (lockReason != null) "Locked" else "Buy", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
 
                 isCosmeticPack && inUse -> OutlinedButton(
                     onClick = onRemove,

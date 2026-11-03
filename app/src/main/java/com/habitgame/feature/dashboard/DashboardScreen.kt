@@ -56,9 +56,12 @@ fun DashboardScreen(
     onNavigateSettings: () -> Unit = {},
     onNavigateLevels: () -> Unit = {},
     onNavigateProgress: () -> Unit = {},
+    onNavigateTemplates: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    var showCoinHelp by remember { mutableStateOf(false) }
+    if (showCoinHelp) CoinHelpSheet(onDismiss = { showCoinHelp = false })
     val focus by viewModel.focus.collectAsState()
     val updater = rememberAppUpdater()
     val update by updater.state.collectAsState()
@@ -117,7 +120,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         // Room at the bottom so the calendar button doesn't cover the last card
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header: photo, greeting and name, then streak, coins and settings on the right.
@@ -339,6 +342,12 @@ fun DashboardScreen(
                         color = if (state.dayItems.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else SuccessGreen.readable(),
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
+                    if (state.dayItems.isEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        FilledTonalButton(onClick = onNavigateTemplates, modifier = Modifier.fillMaxWidth()) {
+                            Text("+ Add habits", fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -388,6 +397,17 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    // "?": how to earn coins, and why boosters and levels help
+    SmallFloatingActionButton(
+        onClick = { showCoinHelp = true },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = androidx.compose.foundation.shape.CircleShape,
+        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 26.dp, bottom = 92.dp)
+    ) {
+        Text("?", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
     }
 
     // Calendar: a day's tasks and habits

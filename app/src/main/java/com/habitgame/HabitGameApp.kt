@@ -51,7 +51,7 @@ class HabitGameApp : Application(), Configuration.Provider {
     private fun watchForWidgetChanges() {
         com.habitgame.widget.WidgetUpdater.start(this, appScope)
         database.invalidationTracker.addObserver(object : androidx.room.InvalidationTracker.Observer(
-            arrayOf("user", "tasks", "habits", "habit_completions", "savings_entries", "day_progress", "challenge")
+            arrayOf("user", "tasks", "habits", "habit_completions", "savings_entries", "day_progress", "challenge", "day_skips")
         ) {
             override fun onInvalidated(tables: Set<String>) = com.habitgame.widget.WidgetUpdater.requestUpdate()
         })

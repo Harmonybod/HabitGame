@@ -26,7 +26,8 @@ data class ShopUiState(
     val allRewards: List<RewardItemEntity> = emptyList(),
     val sessions: Map<Long, ActiveSession> = emptyMap(),  // running timers by item id
     val selectedTab: String = "APP_UNLOCK",
-    val purchaseMessage: String? = null
+    val purchaseMessage: String? = null,
+    val signedIn: Boolean = false   // with Google: needed for the AMOLED theme
 )
 
 /** The Shop items listed under one category tab. */
@@ -45,6 +46,7 @@ class ShopViewModel @Inject constructor(
     private val economyManager: EconomyManager,
     private val boosterManager: BoosterManager,
     private val appRestrictionManager: AppRestrictionManager,
+    private val cloudSync: com.habitgame.domain.sync.CloudSync,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -66,7 +68,7 @@ class ShopViewModel @Inject constructor(
             selectedTab = tab,
             purchaseMessage = message
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
+    }.combine(cloudSync.state) { ui, sync -> ui.copy(signedIn = sync.signedIn) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShopUiState())
 
     init {
         viewModelScope.launch { economyRepo.seedDefaultShop() }
@@ -77,6 +79,10 @@ class ShopViewModel @Inject constructor(
 
     fun purchase(item: RewardItemEntity) {
         viewModelScope.launch {
+            ShopRules.lockReason(item, state.value.user.level, cloudSync.state.value.signedIn)?.let { reason ->
+                _message.value = "🔒 $reason."
+                return@launch
+            }
             val balance = state.value.user.totalCoins
             if (balance < item.cost) {
                 _message.value = "❌ Not enough coins! Need ${item.cost - balance} more."

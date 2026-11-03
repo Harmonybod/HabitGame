@@ -11,4 +11,8 @@
     <string name="widget_board_description">Your 100 circles, filling up day by day</string>
     <string name="widget_savings_name">Savings jar</string>
     <string name="widget_savings_description">Money saved toward your goal, with a quick Add button</string>
+    <string name="widget_savings_mini_name">Savings (small)</string>
+    <string name="widget_savings_mini_description">A slim 2×1 bar: saved so far and how close the goal is</string>
+    <string name="widget_rhythm_name">Weekly rhythm</string>
+    <string name="widget_rhythm_description">Your best and worst weekdays for habits, from the Progress tab</string>
 </resources>

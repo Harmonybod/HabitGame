@@ -134,43 +134,37 @@ class TrackerManager @Inject constructor(
             }
     }
 
+    /**
+     * Creates the challenge on first run. A new install starts empty: everyone picks their own
+     * habits (from the ready-made folders) and their own savings goal, nothing is put there for them.
+     */
     private suspend fun createChallengeIfNeeded(): ChallengeEntity {
         val existing = trackerRepo.getChallenge()
-        val challenge = existing ?: ChallengeEntity(startDate = LocalDate.now().toString())
-        if (challenge.seeded) {
-            if (existing == null) trackerRepo.saveChallenge(challenge)
-            return challenge
-        }
-        if (taskRepo.getTrackerTaskCount() == 0) {
-            TrackerPlan.SEED_TASKS.forEach { seed -> taskRepo.insertTask(seedToTask(seed, challenge.savingsGoal)) }
-        }
-        if (habitRepo.getAllHabits().none { it.trackerKey != null }) {
-            TrackerPlan.SEED_HABITS.forEach { seed -> habitRepo.insertHabit(seedToHabit(seed)) }
-        }
-        val seeded = challenge.copy(seeded = true)
-        trackerRepo.saveChallenge(seeded)
-        return seeded
+        if (existing != null && existing.seeded) return existing
+        val challenge = (existing ?: ChallengeEntity(startDate = LocalDate.now().toString())).copy(seeded = true)
+        trackerRepo.saveChallenge(challenge)
+        return challenge
     }
 
-    private fun seedToTask(seed: TrackerPlan.SeedTask, savingsGoal: Double): TaskEntity {
-        val timeMillis = TaskTiming.millisOf(LocalDate.now().atTime(seed.hour, seed.minute))
+    /** The daily "Put money aside" task that saves goal ÷ 100, made when someone sets a savings goal. */
+    private fun savingsTask(goal: Double): TaskEntity {
+        val timeMillis = TaskTiming.millisOf(LocalDate.now().atTime(20, 0))
         return TaskEntity(
-            name = seed.name,
-            description = seed.description,
+            name = "Put money aside today",
             repetition = RepetitionType.REPEATING,
             categoryType = TaskCategoryType.ACTIVITY,
-            activityCategory = seed.category,
-            difficulty = seed.difficulty,
-            xpReward = EconomyManager.xpForDifficulty(seed.difficulty),
-            coinReward = EconomyManager.coinsForDifficulty(seed.difficulty).toInt(),
+            activityCategory = com.habitgame.core.database.entity.ActivityCategory.SAVINGS,
+            difficulty = com.habitgame.core.database.entity.Difficulty.EASY,
+            xpReward = EconomyManager.xpForDifficulty(com.habitgame.core.database.entity.Difficulty.EASY),
+            coinReward = EconomyManager.coinsForDifficulty(com.habitgame.core.database.entity.Difficulty.EASY).toInt(),
             isAllDay = false,
             scheduledTimeMillis = timeMillis,
             isRecurring = true,
             notifyEnabled = true,
             notifyAtMillis = timeMillis,
-            focusDurationMinutes = seed.focusMinutes,
-            savingAmount = if (seed.key == TrackerPlan.SAVINGS_TASK_KEY) dailySavingFor(savingsGoal) else 0.0,
-            trackerKey = seed.key
+            focusDurationMinutes = 0,
+            savingAmount = dailySavingFor(goal),
+            trackerKey = TrackerPlan.SAVINGS_TASK_KEY
         )
     }
 
@@ -187,10 +181,14 @@ class TrackerManager @Inject constructor(
         )
         trackerRepo.saveChallenge(updated)
         if (savingsGoal != null) {
-            // Keep the daily savings task in step with the goal
-            taskRepo.getAllTasks()
-                .filter { it.trackerKey == TrackerPlan.SAVINGS_TASK_KEY }
-                .forEach { taskRepo.updateTask(it.copy(savingAmount = dailySavingFor(savingsGoal))) }
+            // Keep the daily savings task in step with the goal; the first goal adds it
+            val savingTasks = taskRepo.getAllTasks().filter { it.trackerKey == TrackerPlan.SAVINGS_TASK_KEY }
+            savingTasks.forEach { taskRepo.updateTask(it.copy(savingAmount = dailySavingFor(savingsGoal))) }
+            if (savingTasks.isEmpty() && savingsGoal > 0) {
+                val task = savingsTask(savingsGoal)
+                scheduleReminder(task.copy(id = taskRepo.insertTask(task)))
+                snapshotToday()
+            }
         }
     }
 
