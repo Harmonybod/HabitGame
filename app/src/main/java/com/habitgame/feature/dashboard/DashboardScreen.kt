@@ -342,7 +342,7 @@ fun DashboardScreen(
 
         // The part of the day: everything planned for it (things without a time show in every part)
         item(key = "day_parts") {
-            DayPartToggle(
+            DayPartSwitch(
                 selected = state.dayPart,
                 bounds = state.bounds,
                 openCount = { part -> state.dayItems.count { !it.done && !it.skipped && (part == null || it.time == null || state.bounds.zoneOf(it.time) == part) } },
@@ -935,54 +935,6 @@ private fun StepRow(text: String, checked: Boolean, onToggle: () -> Unit) {
                 color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f) else MaterialTheme.colorScheme.onSurface,
                 textDecoration = if (checked) TextDecoration.LineThrough else null
             )
-        }
-    }
-}
-
-/** The big part-of-day toggle on Home: All, Morning, Afternoon, Evening, each with how many are left. */
-@Composable
-private fun DayPartToggle(
-    selected: com.habitgame.domain.tracker.DayZone?,
-    bounds: com.habitgame.domain.tracker.DayBounds,
-    openCount: (com.habitgame.domain.tracker.DayZone?) -> Int,
-    onSelect: (com.habitgame.domain.tracker.DayZone?) -> Unit
-) {
-    val now = bounds.current()
-    val parts = listOf<com.habitgame.domain.tracker.DayZone?>(
-        null, com.habitgame.domain.tracker.DayZone.MORNING, com.habitgame.domain.tracker.DayZone.AFTERNOON, com.habitgame.domain.tracker.DayZone.EVENING
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        parts.forEach { part ->
-            val on = selected == part
-            val count = openCount(part)
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
-                    .clickable(onClickLabel = "Show ${part?.label ?: "the whole day"}") { onSelect(part) }
-                    .padding(vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(part?.emoji ?: "📋", fontSize = 24.sp)
-                Text(
-                    part?.label ?: "All",
-                    fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-                    color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    if (part == now) "now · $count" else "$count left",
-                    fontSize = 10.sp, maxLines = 1,
-                    color = if (on) MaterialTheme.colorScheme.onPrimary.copy(0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }
