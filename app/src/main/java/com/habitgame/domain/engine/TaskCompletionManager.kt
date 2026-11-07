@@ -31,11 +31,13 @@ class TaskCompletionManager @Inject constructor(
     /**
      * Marks the task done and pays out XP and coins. For savings tasks, [savedAmount]
      * (or the task's own amount) is logged in the Savings tab.
-     * Returns null if the task was already done.
+     * Returns null if the task was already done, or its checklist isn't finished yet (its last step completes it).
      */
     suspend fun complete(taskId: Long, savedAmount: Double? = null): LevelUpResult? {
         val task = taskRepo.getTaskById(taskId) ?: return null
         if (task.isCompleted) return null
+        val steps = checklistDao.forOwner(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id)
+        if (Checklist.progress(steps, task.isRecurring, LocalDate.now().toString()) < steps.size) return null
 
         taskRepo.completeTask(task.id)
         // Done means every step of its checklist is done too

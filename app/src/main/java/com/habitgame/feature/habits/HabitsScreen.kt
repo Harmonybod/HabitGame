@@ -347,13 +347,17 @@ fun PlanRow(
     dim: Boolean = false
 ) {
     val today = LocalDate.now().toString()
-    var showSteps by remember(item.key) { mutableStateOf(!item.done) }
+    val folds = rememberChecklistFolds()
+    val owner = item.task?.let { "task:${it.id}" } ?: "habit:${item.habit!!.id}"
+    val showSteps = folds.isOpen(owner)
     val struck = item.done || item.skipped
     GameCard(modifier.alpha(if (dim) 0.65f else 1f).clickable(onClickLabel = "Edit", onClick = onEdit)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (onToggle != null && (item.steps.isEmpty() || item.done)) {
                 // With a checklist it's done by ticking its steps; a done one can be unticked (a task asks first)
                 RoundCheck(checked = item.done, onClick = onToggle, enabled = !item.skipped)
+            } else if (item.steps.isNotEmpty()) {
+                StepsToggle(item.stepsDone, item.steps.size, showSteps, { folds.toggle(owner) })
             }
             item.habit?.let { Text(it.iconEmoji, fontSize = 24.sp) }
             item.task?.let { task ->
@@ -391,9 +395,10 @@ fun PlanRow(
                     val xp = item.habit?.xpReward ?: item.task!!.xpReward
                     val coins = item.habit?.coinReward ?: item.task!!.coinReward
                     Text("⭐$xp  🪙$coins", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                    if (item.steps.isNotEmpty()) {
+                    // A done one keeps its tick, so its checklist opens from here
+                    if (item.steps.isNotEmpty() && (item.done || onToggle == null)) {
                         Row(
-                            Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = if (showSteps) "Hide checklist" else "Show checklist") { showSteps = !showSteps }
+                            Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = if (showSteps) "Hide checklist" else "Show checklist") { folds.toggle(owner) }
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

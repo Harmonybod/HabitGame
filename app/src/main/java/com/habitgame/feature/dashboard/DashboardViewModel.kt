@@ -66,6 +66,7 @@ data class DashboardUiState(
     val user: UserEntity = UserEntity(),
     val dayItems: List<DayItem> = emptyList(),          // today's tasks and habits, by time
     val anytimeTasks: List<TaskEntity> = emptyList(),   // not done yet and not tied to a day, e.g. shopping
+    val anytimeDone: List<DayItem> = emptyList(),       // any-time tasks done today, for the Completed list
     val xpProgress: Float = 0f,
     val xpRequired: Long = 100,
     val comboCount: Int = 0,
@@ -195,7 +196,9 @@ class DashboardViewModel @Inject constructor(
                     )
                 }
                 val dayItems = (taskItems + habitItems).sortedWith(DayItem.ORDER)
-                val anytime = tasks.filter { TaskTiming.isAnytime(it) && !it.isCompleted }.sortedBy { it.deadlineAt ?: Long.MAX_VALUE }
+                val anytime = tasks.filter { TaskTiming.isAnytime(it) && !it.isCompleted }.sortedBy { it.deadlineAt ?: Long.MAX_VALUE } to
+                    tasks.filter { TaskTiming.isAnytime(it) && TaskTiming.completedOn(it, today) }
+                        .map { DayItem(task = it, done = true, skipped = false, doneAt = it.completedAt) }
                 val notes = allHabits
                     .filter { it.showOnHome && it.description.isNotBlank() && !TaskTiming.repeatRule(it).hasEnded() }
                     .sortedBy { TaskTiming.timeOfDay(it) ?: LocalTime.MAX }
@@ -210,7 +213,8 @@ class DashboardViewModel @Inject constructor(
                         dayPart = if (dayPartPicked) it.dayPart else bounds.current(),
                         user = u,
                         dayItems = dayItems,
-                        anytimeTasks = anytime,
+                        anytimeTasks = anytime.first,
+                        anytimeDone = anytime.second,
                         homeNotes = notes,
                         xpProgress = progressEngine.progressFraction(u),
                         xpRequired = UserProgressEngine.xpRequired(u.level),
@@ -367,7 +371,7 @@ class DashboardViewModel @Inject constructor(
                 habitManager.uncompleteHabit(habit.id)
             } else {
                 val oldTitle = _state.value.user.title
-                val result = habitManager.completeHabit(habit)
+                val result = habitManager.completeHabit(habit) ?: return@launch
                 if (result.didLevelUp) {
                     _state.update { it.copy(
                         showLevelUpDialog = true,

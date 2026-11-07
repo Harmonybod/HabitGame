@@ -71,6 +71,7 @@ fun DashboardScreen(
     var undoing by remember { mutableStateOf<DayItem?>(null) }
     var showCompleted by rememberSaveable { mutableStateOf(false) }
     var showAnytime by rememberSaveable { mutableStateOf(false) }
+    val folds = rememberChecklistFolds()
 
     // Skipping is asked first: it can't earn anything that day
     // Undoing a completion asks first: it takes the reward back
@@ -352,7 +353,7 @@ fun DashboardScreen(
 
         // Today: tasks and habits together, in time order. Swipe right for done, left to skip.
         val active = state.dayItems.filter { !it.done && !it.skipped && state.inDayPart(it) }
-        val finished = state.dayItems.filter { (it.done || it.skipped) && state.inDayPart(it) }.sortedByDescending { it.doneAt ?: 0L }
+        val finished = (state.dayItems.filter { (it.done || it.skipped) && state.inDayPart(it) } + state.anytimeDone).sortedByDescending { it.doneAt ?: 0L }
         item(key = "today_header") {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -399,18 +400,22 @@ fun DashboardScreen(
                     ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }) }
                 }
             } else {
-                // With a checklist: the steps are ticked (or swiped) one by one, and the last one completes it
+                // With a checklist: no tick of its own. ^ opens the steps, which are ticked (or swiped) one by one,
+                // and the last one completes it
+                val owner = dayItem.task?.let { "task:${it.id}" } ?: "habit:${dayItem.habit!!.habit.id}"
+                val open = folds.isOpen(owner)
                 item(key = dayItem.key) {
                     Box(Modifier.animateItem()) {
                         DayItemRow(
                             dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) },
-                            steps = state.stepsFor(dayItem), showCheck = false
+                            showCheck = false,
+                            fold = { state.stepsFor(dayItem)?.let { (done, total) -> StepsToggle(done, total, open, { folds.toggle(owner) }) } }
                         )
                     }
                 }
                 val repeats = dayItem.habit != null || dayItem.task?.isRecurring == true
                 val today = java.time.LocalDate.now().toString()
-                items(steps, key = { "step_${it.id}" }) { step ->
+                if (open) items(steps, key = { "step_${it.id}" }) { step ->
                     val checked = com.habitgame.domain.engine.Checklist.isChecked(step, repeats, today)
                     SwipeableDayRow(
                         onDone = { if (!checked) viewModel.toggleStep(step) },
@@ -433,15 +438,35 @@ fun DashboardScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                     )
                 }
-                items(state.anytimeTasks, key = { "any_${it.id}" }) { task ->
-                    TaskRow(
-                        task = task,
-                        onComplete = { viewModel.completeTask(task) },
-                        onStartFocus = { onNavigateFocus(task.id) },
-                        onEdit = { editing = task },
-                        modifier = Modifier.animateItem(),
-                        steps = state.stepsOf("task", task.id, task.isRecurring)
-                    )
+                state.anytimeTasks.forEach { task ->
+                    val owner = "task:${task.id}"
+                    val steps = state.steps[owner].orEmpty()
+                    val open = steps.isNotEmpty() && folds.isOpen(owner)
+                    item(key = "any_${task.id}") {
+                        TaskRow(
+                            task = task,
+                            onComplete = { viewModel.completeTask(task) },
+                            onStartFocus = { onNavigateFocus(task.id) },
+                            onEdit = { editing = task },
+                            modifier = Modifier.animateItem(),
+                            steps = state.stepsOf("task", task.id, task.isRecurring),
+                            showCheck = steps.isEmpty(),
+                            fold = if (steps.isEmpty()) null else ({
+                                state.stepsOf("task", task.id, task.isRecurring)?.let { (done, total) -> StepsToggle(done, total, open, { folds.toggle(owner) }) }
+                            })
+                        )
+                    }
+                    if (open) {
+                        val today = java.time.LocalDate.now().toString()
+                        items(steps, key = { "any_step_${it.id}" }) { step ->
+                            val checked = com.habitgame.domain.engine.Checklist.isChecked(step, task.isRecurring, today)
+                            SwipeableDayRow(
+                                onDone = { if (!checked) viewModel.toggleStep(step) },
+                                onSkip = null,
+                                modifier = Modifier.padding(start = 28.dp).animateItem()
+                            ) { StepRow(step.text, checked) { viewModel.toggleStep(step) } }
+                        }
+                    }
                 }
             }
         }
@@ -886,7 +911,8 @@ private fun DayItemRow(
     onStartFocus: (Long) -> Unit,
     steps: Pair<Int, Int>? = null,
     showCheck: Boolean = true,
-    onUndo: (() -> Unit)? = null
+    onUndo: (() -> Unit)? = null,
+    fold: (@Composable () -> Unit)? = null
 ) {
     val onUndoSkip = if (dayItem.skipped) ({ viewModel.unskipItem(dayItem) }) else null
     dayItem.task?.let { task ->
@@ -898,7 +924,8 @@ private fun DayItemRow(
             onUndoSkip = onUndoSkip,
             steps = steps,
             showCheck = showCheck,
-            onUndo = onUndo
+            onUndo = onUndo,
+            fold = fold
         )
     }
     dayItem.habit?.let { habit ->
@@ -909,7 +936,8 @@ private fun DayItemRow(
             onUndoSkip = onUndoSkip,
             steps = steps,
             showCheck = showCheck,
-            onUndo = onUndo
+            onUndo = onUndo,
+            fold = fold
         )
     }
 }
@@ -1022,7 +1050,8 @@ fun TaskRow(
     onUndoSkip: (() -> Unit)? = null,
     steps: Pair<Int, Int>? = null,
     showCheck: Boolean = true,              // off when a checklist completes it instead
-    onUndo: (() -> Unit)? = null            // a done one can be marked not done
+    onUndo: (() -> Unit)? = null,           // a done one can be marked not done
+    fold: (@Composable () -> Unit)? = null  // the ^ button that opens its checklist, in place of the tick
 ) {
     val diffColor = when (task.difficulty) {
         Difficulty.EASY   -> SuccessGreen
@@ -1034,7 +1063,8 @@ fun TaskRow(
     val struck = task.isCompleted || onUndoSkip != null
     GameCard(modifier.clickable(onClickLabel = "Edit task", onClick = onEdit)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (showCheck) RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted && onUndoSkip == null)
+            if (fold != null && !task.isCompleted) fold()
+            else if (showCheck) RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted && onUndoSkip == null)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (time != null) {
@@ -1055,7 +1085,7 @@ fun TaskRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     DifficultyBadge(task.difficulty.name, diffColor)
                     Text("⭐${task.xpReward} XP  🪙${task.coinReward}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                    steps?.let { (done, total) -> ChecklistBadge(done, total) }
+                    if (fold == null || task.isCompleted) steps?.let { (done, total) -> ChecklistBadge(done, total) }
                 }
                 if (onUndoSkip != null) SkippedNote(onUndoSkip)
                 // Deadline: amber when less than an hour is left
@@ -1098,7 +1128,8 @@ fun HabitDashboardRow(
     onUndoSkip: (() -> Unit)? = null,
     steps: Pair<Int, Int>? = null,
     showCheck: Boolean = true,
-    onUndo: (() -> Unit)? = null
+    onUndo: (() -> Unit)? = null,
+    fold: (@Composable () -> Unit)? = null
 ) {
     val habit = habitStatus.habit
     val struck = habitStatus.isCompletedToday || onUndoSkip != null
@@ -1132,11 +1163,12 @@ fun HabitDashboardRow(
                     if (habitStatus.streak > 0) {
                         Text("🔥 ${habitStatus.streak} day streak", color = WarningAmber, fontSize = 11.sp)
                     }
-                    steps?.let { (done, total) -> ChecklistBadge(done, total) }
+                    if (fold == null || habitStatus.isCompletedToday) steps?.let { (done, total) -> ChecklistBadge(done, total) }
                 }
                 if (onUndoSkip != null) SkippedNote(onUndoSkip)
             }
             if (onUndo != null && habitStatus.isCompletedToday) UndoButton(onUndo)
+            else if (fold != null && !habitStatus.isCompletedToday) fold()
             else if (onUndoSkip == null && showCheck) RoundCheck(checked = habitStatus.isCompletedToday, onClick = onToggle)
         }
     }

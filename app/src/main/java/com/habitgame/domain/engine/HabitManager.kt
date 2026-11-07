@@ -35,9 +35,12 @@ class HabitManager @Inject constructor(
         habits.filter { TaskTiming.isDueOn(it, date) }
 
     /**
-     * Completes a habit for today and awards rewards.
+     * Completes a habit for today and awards rewards. Returns null while its checklist isn't
+     * finished: its last step completes it.
      */
-    suspend fun completeHabit(habit: HabitEntity): HabitCompletionResult {
+    suspend fun completeHabit(habit: HabitEntity): HabitCompletionResult? {
+        val steps = checklistDao.forOwner(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habit.id)
+        if (Checklist.progress(steps, repeats = true, LocalDate.now().toString()) < steps.size) return null
         habitRepo.completeHabit(habit.id)
         // Done means every step of its checklist is done too
         checklistDao.checkAll(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habit.id, LocalDate.now().toString())
