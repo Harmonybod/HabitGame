@@ -67,6 +67,23 @@ class UserProgressEngine @Inject constructor(
         return LevelUpResult(didLevelUp, currentLevel, newTitle, earnedXp)
     }
 
+    /**
+     * Takes back XP (e.g. a task ticked by mistake). If that goes below this level's start, the level
+     * drops back, never below level 1. Level-up coins aren't paid twice when the level comes back.
+     */
+    suspend fun removeXp(amount: Int) {
+        if (amount <= 0) return
+        val user = userRepo.getUser() ?: return
+        var xp = user.currentXp - amount
+        var level = user.level
+        while (xp < 0 && level > 1) {
+            level--
+            xp += xpRequired(level)
+        }
+        userRepo.updateUser(user.copy(currentXp = xp.coerceAtLeast(0), level = level, title = titleForLevel(level)))
+        trackerRepo.logXp(java.time.LocalDate.now().toString(), -amount)
+    }
+
     fun progressFraction(user: UserEntity): Float {
         val needed = xpRequired(user.level)
         return if (needed == 0L) 0f else (user.currentXp.toFloat() / needed).coerceIn(0f, 1f)

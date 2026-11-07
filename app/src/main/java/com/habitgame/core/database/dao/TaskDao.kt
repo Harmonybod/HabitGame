@@ -24,6 +24,10 @@ interface TaskDao {
     @Query("UPDATE tasks SET isCompleted = 1, completedAt = :completedAt WHERE id = :id")
     suspend fun completeTask(id: Long, completedAt: Long = System.currentTimeMillis())
 
+    /** Back to not done, e.g. after ticking it by mistake. */
+    @Query("UPDATE tasks SET isCompleted = 0, completedAt = NULL WHERE id = :id")
+    suspend fun uncompleteTask(id: Long)
+
     @Delete
     suspend fun deleteTask(task: TaskEntity)
 

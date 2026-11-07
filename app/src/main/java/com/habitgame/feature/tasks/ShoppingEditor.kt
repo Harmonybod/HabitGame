@@ -77,6 +77,7 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
     DeadlineField(
         deadline = form.deadline,
         onChange = { form.deadline = it },
+        title = "📅 Due date",
         offText = "None: buy it whenever you like",
         onText = "Not bought by then? It's removed from your list.",
         reminderText = reminderText
@@ -92,6 +93,7 @@ fun ShoppingFields(form: ShoppingForm, currency: String, reminderText: String) {
 fun DeadlineField(
     deadline: LocalDateTime?,
     onChange: (LocalDateTime?) -> Unit,
+    title: String = "⏳ Deadline",
     offText: String,
     onText: String,
     reminderText: String
@@ -101,7 +103,7 @@ fun DeadlineField(
 
     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("⏳ Deadline", color = MaterialTheme.colorScheme.onSurface)
+            Text(title, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 if (deadline == null) offText else onText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
@@ -239,11 +241,13 @@ fun EditShoppingSheet(
     task: TaskEntity,
     currency: String,
     reminderText: String,
+    checklist: List<String> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (TaskEntity) -> Unit,
+    onSave: (TaskEntity, List<String>) -> Unit,
     onDelete: () -> Unit
 ) {
     var name by remember(task.id) { mutableStateOf(task.name) }
+    var steps by remember(task.id) { mutableStateOf(checklist) }
     var difficulty by remember(task.id) { mutableStateOf(task.difficulty) }
     val form = remember(task.id) { ShoppingForm(task.priceMin, task.priceMax, task.deadlineAt) }
 
@@ -260,6 +264,7 @@ fun EditShoppingSheet(
             )
             DifficultyPicker(difficulty) { difficulty = it }
             ShoppingFields(form, currency, reminderText)
+            com.habitgame.ui.components.ChecklistEditor(steps) { steps = it }
             EditorActions(
                 saveLabel = "Save changes",
                 onSave = {
@@ -270,7 +275,8 @@ fun EditShoppingSheet(
                             difficulty = difficulty,
                             xpReward = EconomyManager.xpForDifficulty(difficulty),
                             coinReward = EconomyManager.coinsForDifficulty(difficulty).toInt()
-                        )
+                        ),
+                        steps.map { it.trim() }.filter { it.isNotEmpty() }
                     )
                 },
                 onDelete = onDelete

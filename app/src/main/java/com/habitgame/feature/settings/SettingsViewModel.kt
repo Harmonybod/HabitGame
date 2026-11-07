@@ -48,6 +48,7 @@ class SettingsViewModel @Inject constructor(
     private val daySkipDao: com.habitgame.core.database.dao.DaySkipDao,
     private val areaDao: com.habitgame.core.database.dao.AreaDao,
     private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
+    private val receiptDao: com.habitgame.core.database.dao.CompletionReceiptDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -192,6 +193,13 @@ class SettingsViewModel @Inject constructor(
         userRepo.updateUser(user.copy(displayName = trimmed))
     }
 
+    /** When morning, afternoon and evening start (minutes after midnight); they must go in that order. */
+    fun setDayParts(morning: Int, afternoon: Int, evening: Int) = viewModelScope.launch {
+        if (!com.habitgame.domain.tracker.DayBounds(morning, afternoon, evening).valid) return@launch
+        val user = userRepo.getUser() ?: return@launch
+        userRepo.updateUser(user.copy(morningStart = morning, afternoonStart = afternoon, eveningStart = evening))
+    }
+
     /** Permanently delete ALL data and re-seed the shop */
     fun resetAllData() = viewModelScope.launch {
         taskRepo.getAllTasks().forEach { com.habitgame.domain.notification.TaskReminderWorker.cancelReminder(context, it.id) }
@@ -205,6 +213,7 @@ class SettingsViewModel @Inject constructor(
         daySkipDao.deleteAll()
         areaDao.deleteAll()
         checklistDao.deleteAll()
+        receiptDao.deleteAll()
         userRepo.deleteAll()  // Also re-creates a fresh UserEntity
         economyRepo.seedDefaultShop()
         trackerManager.runDailyMaintenance()  // fresh 100-day challenge starting today

@@ -14,6 +14,7 @@ class TaskRepository @Inject constructor(private val dao: TaskDao) {
     suspend fun insertTask(task: TaskEntity): Long = dao.insertTask(task)
     suspend fun updateTask(task: TaskEntity) = dao.updateTask(task)
     suspend fun completeTask(id: Long) = dao.completeTask(id)
+    suspend fun uncompleteTask(id: Long) = dao.uncompleteTask(id)
     suspend fun deleteTask(task: TaskEntity) = dao.deleteTask(task)
     suspend fun getCompletedTaskCount(): Int = dao.getCompletedTaskCount()
     fun observeTasksByDate(dateMillis: Long) = dao.observeTasksByDate(dateMillis)

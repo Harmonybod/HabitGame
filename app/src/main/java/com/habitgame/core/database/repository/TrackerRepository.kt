@@ -41,6 +41,7 @@ class TrackerRepository @Inject constructor(
     fun observeSavings(): Flow<List<SavingsEntryEntity>> = savingsDao.observeAll()
     suspend fun addSaving(entry: SavingsEntryEntity): Long = savingsDao.insert(entry)
     suspend fun deleteSaving(entry: SavingsEntryEntity) = savingsDao.delete(entry)
+    suspend fun deleteSavingForTask(taskId: Long, date: String) = savingsDao.deleteForTask(taskId, date)
 
     // XP history (the weekly graph)
     fun observeDailyXp(from: String, to: String): Flow<List<DailyXp>> = xpLogDao.observeDaily(from, to)

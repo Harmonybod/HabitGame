@@ -61,6 +61,10 @@ interface SavingsDao {
     @Delete
     suspend fun delete(entry: SavingsEntryEntity)
 
+    /** The money a savings task logged that day, when the task is un-done. */
+    @Query("DELETE FROM savings_entries WHERE taskId = :taskId AND date = :date")
+    suspend fun deleteForTask(taskId: Long, date: String)
+
     @Query("DELETE FROM savings_entries")
     suspend fun deleteAll()
 }

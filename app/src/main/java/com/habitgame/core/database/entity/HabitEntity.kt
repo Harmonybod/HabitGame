@@ -27,5 +27,7 @@ data class HabitEntity(
     // Set on habits created from the 100-day tracker
     val trackerKey: String? = null,
     // Show this habit's description as a card on the Home screen
-    @ColumnInfo(defaultValue = "0") val showOnHome: Boolean = false
+    @ColumnInfo(defaultValue = "0") val showOnHome: Boolean = false,
+    // A bad habit to break: ticking it means a clean day (you didn't do it)
+    @ColumnInfo(defaultValue = "0") val isBad: Boolean = false
 )

@@ -18,6 +18,7 @@ class HabitManager @Inject constructor(
     private val streakManager: StreakManager,
     private val trackerManager: com.habitgame.domain.tracker.TrackerManager,
     private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
+    private val completionRewards: CompletionRewards,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -49,6 +50,7 @@ class HabitManager @Inject constructor(
 
         val xpResult = progressEngine.awardXp(xpBase, multiplier)
         val coinsEarned = economyManager.earnCoins(coinBase, "Habit: ${habit.name}", multiplier)
+        completionRewards.remember(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habit.id, xpResult.xpEarned, coinsEarned)
         streakManager.recordProductiveDay(xpBase, coinBase.toInt())
 
         // Done for today: clear its notifications and move the reminder to its next day
@@ -68,7 +70,15 @@ class HabitManager @Inject constructor(
 
     /** Un-does today's tick. Its checklist is unticked too, unless one step was unticked by hand ([keepChecklist]). */
     suspend fun uncompleteHabit(habitId: Long, keepChecklist: Boolean = false) {
+        val wasDone = habitRepo.isHabitCompletedToday(habitId)
         habitRepo.uncompleteHabit(habitId)
+        // Unticking takes back what the tick paid, so ticking again can't earn twice
+        if (wasDone) habitRepo.getHabitById(habitId)?.let { habit ->
+            completionRewards.takeBack(
+                com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habitId, habit.name,
+                EconomyManager.xpForDifficulty(habit.difficulty), EconomyManager.coinsForDifficulty(habit.difficulty)
+            )
+        }
         if (!keepChecklist) {
             checklistDao.uncheckOn(com.habitgame.core.database.entity.DaySkipEntity.KIND_HABIT, habitId, LocalDate.now().toString())
         }

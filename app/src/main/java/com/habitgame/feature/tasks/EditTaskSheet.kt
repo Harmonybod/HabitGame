@@ -120,7 +120,7 @@ fun EditTaskSheet(
                 TimeEditor(time = time, onTimeChange = { time = it })
             } else {
                 SwitchRow(
-                    "📅 Due",
+                    "📅 Due date",
                     if (hasDueDate) "On that day's list and the 100-day board" else "None: do it any day you like",
                     hasDueDate
                 ) { hasDueDate = it }

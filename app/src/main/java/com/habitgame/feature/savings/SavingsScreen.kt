@@ -155,7 +155,7 @@ fun SavingsScreen(viewModel: SavingsViewModel = hiltViewModel()) {
         if (state.tasks.isEmpty()) {
             item { Text("No savings tasks yet. Add one and you'll get a reminder at its time.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        items(state.tasks, key = { it.id }) { task ->
+        items(state.tasks, key = { "task_${it.id}" }) { task ->
             SavingsTaskRow(
                 task = task,
                 money = state::money,
@@ -171,7 +171,7 @@ fun SavingsScreen(viewModel: SavingsViewModel = hiltViewModel()) {
         if (state.entries.isEmpty()) {
             item { Text("Money you put aside will show up here.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        items(state.entries, key = { it.id }) { entry ->
+        items(state.entries, key = { "entry_${it.id}" }) { entry ->
             DepositRow(entry, state::money) { viewModel.deleteDeposit(entry) }
         }
     }

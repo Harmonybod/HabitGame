@@ -174,6 +174,10 @@ fun GeneralSettingsScreen(
             }
         }
         item {
+            SettingsSectionHeader("🕰️ Parts of the day")
+            GameCard { DayPartsSection(user, viewModel::setDayParts) }
+        }
+        item {
             SettingsSectionHeader("⬆️ App version")
             GameCard { AppVersionSection() }
         }

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -67,10 +68,28 @@ fun DashboardScreen(
     val update by updater.state.collectAsState()
     var editing by remember { mutableStateOf<TaskEntity?>(null) }
     var skipping by remember { mutableStateOf<DayItem?>(null) }
+    var undoing by remember { mutableStateOf<DayItem?>(null) }
     var showCompleted by rememberSaveable { mutableStateOf(false) }
     var showAnytime by rememberSaveable { mutableStateOf(false) }
 
     // Skipping is asked first: it can't earn anything that day
+    // Undoing a completion asks first: it takes the reward back
+    undoing?.let { dayItem ->
+        AlertDialog(
+            onDismissRequest = { undoing = null },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = { Text("Mark “${dayItem.name}” as not done?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Text(
+                    "For when it was ticked by mistake. The XP and coins it earned are taken back, and it goes back on today's list.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = { TextButton(onClick = { viewModel.undoItem(dayItem); undoing = null }) { Text("Not done", fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = { undoing = null }) { Text("Cancel") } }
+        )
+    }
+
     skipping?.let { dayItem ->
         AlertDialog(
             onDismissRequest = { skipping = null },
@@ -94,8 +113,9 @@ fun DashboardScreen(
             reminderText = com.habitgame.domain.notification.ReminderTimes.describe(
                 com.habitgame.domain.notification.ReminderTimes.parse(state.user.deadlineReminderTimes)
             ),
+            checklist = state.steps["task:${task.id}"].orEmpty().map { it.text },
             onDismiss = { editing = null },
-            onSave = { viewModel.updateTask(it); editing = null },
+            onSave = { t, steps -> viewModel.updateTask(t, steps); editing = null },
             onDelete = { viewModel.deleteTask(task); editing = null }
         )
     }
@@ -320,15 +340,28 @@ fun DashboardScreen(
             }
         }
 
+        // The part of the day: everything planned for it (things without a time show in every part)
+        item(key = "day_parts") {
+            DayPartToggle(
+                selected = state.dayPart,
+                bounds = state.bounds,
+                openCount = { part -> state.dayItems.count { !it.done && !it.skipped && (part == null || it.time == null || state.bounds.zoneOf(it.time) == part) } },
+                onSelect = viewModel::selectDayPart
+            )
+        }
+
         // Today: tasks and habits together, in time order. Swipe right for done, left to skip.
-        val active = state.dayItems.filter { !it.done && !it.skipped }
-        val finished = state.dayItems.filter { it.done || it.skipped }
+        val active = state.dayItems.filter { !it.done && !it.skipped && state.inDayPart(it) }
+        val finished = state.dayItems.filter { (it.done || it.skipped) && state.inDayPart(it) }.sortedByDescending { it.doneAt ?: 0L }
         item(key = "today_header") {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("📋 Today", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    state.dayPart?.let { "${it.emoji} ${it.label}" } ?: "📋 Today",
+                    color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (active.isEmpty()) "" else "${active.size} left · swipe → done, ← skip",
+                    if (active.isEmpty()) "" else "${active.size} left · pull → done, ← skip",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
@@ -338,7 +371,11 @@ fun DashboardScreen(
             item(key = "today_empty") {
                 GameCard {
                     Text(
-                        if (state.dayItems.isEmpty()) "Nothing planned for today." else "🎉 Everything for today is done!",
+                        when {
+                            state.dayItems.isEmpty() -> "Nothing planned for today."
+                            state.dayPart != null && state.dayItems.none { state.inDayPart(it) } -> "Nothing planned for the ${state.dayPart!!.label.lowercase()}."
+                            else -> "🎉 All done here!"
+                        },
                         color = if (state.dayItems.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else SuccessGreen.readable(),
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
@@ -351,12 +388,37 @@ fun DashboardScreen(
                 }
             }
         }
-        items(active, key = { it.key }) { dayItem ->
-            SwipeableDayRow(
-                onDone = { viewModel.completeItem(dayItem) },
-                onSkip = { skipping = dayItem },
-                modifier = Modifier.animateItem()
-            ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }, steps = state.stepsFor(dayItem)) }
+        active.forEach { dayItem ->
+            val steps = state.stepList(dayItem)
+            if (steps.isEmpty()) {
+                item(key = dayItem.key) {
+                    SwipeableDayRow(
+                        onDone = { viewModel.completeItem(dayItem) },
+                        onSkip = { skipping = dayItem },
+                        modifier = Modifier.animateItem()
+                    ) { DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }) }
+                }
+            } else {
+                // With a checklist: the steps are ticked (or swiped) one by one, and the last one completes it
+                item(key = dayItem.key) {
+                    Box(Modifier.animateItem()) {
+                        DayItemRow(
+                            dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) },
+                            steps = state.stepsFor(dayItem), showCheck = false
+                        )
+                    }
+                }
+                val repeats = dayItem.habit != null || dayItem.task?.isRecurring == true
+                val today = java.time.LocalDate.now().toString()
+                items(steps, key = { "step_${it.id}" }) { step ->
+                    val checked = com.habitgame.domain.engine.Checklist.isChecked(step, repeats, today)
+                    SwipeableDayRow(
+                        onDone = { if (!checked) viewModel.toggleStep(step) },
+                        onSkip = null,
+                        modifier = Modifier.padding(start = 28.dp).animateItem()
+                    ) { StepRow(step.text, checked) { viewModel.toggleStep(step) } }
+                }
+            }
         }
 
         // Tasks with no day of their own, e.g. shopping
@@ -384,7 +446,7 @@ fun DashboardScreen(
             }
         }
 
-        // Done and skipped today, folded away
+        // Done and skipped today, newest first, folded away; a mistaken tick can be undone
         if (finished.isNotEmpty()) {
             item(key = "done_header") {
                 FoldHeader("✓ Completed", finished.size, showCompleted) { showCompleted = !showCompleted }
@@ -392,7 +454,11 @@ fun DashboardScreen(
             if (showCompleted) {
                 items(finished, key = { "done_" + it.key }) { dayItem ->
                     Box(Modifier.animateItem()) {
-                        DayItemRow(dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) }, steps = state.stepsFor(dayItem))
+                        DayItemRow(
+                            dayItem, viewModel, onEdit = { editing = it }, onStartFocus = { onNavigateFocus(it) },
+                            steps = state.stepsFor(dayItem),
+                            onUndo = if (dayItem.done) ({ undoing = dayItem }) else null
+                        )
                     }
                 }
             }
@@ -813,7 +879,15 @@ private fun formatMinutes(minutes: Long): String =
 
 /** A row of today's list: the task or habit, done ones struck through, skipped ones with Undo. */
 @Composable
-private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: (TaskEntity) -> Unit, onStartFocus: (Long) -> Unit, steps: Pair<Int, Int>? = null) {
+private fun DayItemRow(
+    dayItem: DayItem,
+    viewModel: DashboardViewModel,
+    onEdit: (TaskEntity) -> Unit,
+    onStartFocus: (Long) -> Unit,
+    steps: Pair<Int, Int>? = null,
+    showCheck: Boolean = true,
+    onUndo: (() -> Unit)? = null
+) {
     val onUndoSkip = if (dayItem.skipped) ({ viewModel.unskipItem(dayItem) }) else null
     dayItem.task?.let { task ->
         TaskRow(
@@ -822,32 +896,131 @@ private fun DayItemRow(dayItem: DayItem, viewModel: DashboardViewModel, onEdit: 
             onStartFocus = { onStartFocus(task.id) },
             onEdit = { onEdit(task) },
             onUndoSkip = onUndoSkip,
-            steps = steps
+            steps = steps,
+            showCheck = showCheck,
+            onUndo = onUndo
         )
     }
     dayItem.habit?.let { habit ->
         HabitDashboardRow(
-            habitStatus = habit, onToggle = { viewModel.toggleHabit(habit.habit) }, onUndoSkip = onUndoSkip,
-            steps = steps
+            habitStatus = habit,
+            // A done habit is unticked through Undo (it asks first), so the tick only ticks
+            onToggle = { if (!habit.isCompletedToday) viewModel.toggleHabit(habit.habit) else onUndo?.invoke() },
+            onUndoSkip = onUndoSkip,
+            steps = steps,
+            showCheck = showCheck,
+            onUndo = onUndo
         )
+    }
+}
+
+/** One checklist step under its task or habit: tap (or pull right) to tick it. */
+@Composable
+private fun StepRow(text: String, checked: Boolean, onToggle: () -> Unit) {
+    GameCard(Modifier.clickable(onClickLabel = if (checked) "Untick" else "Tick", onClick = onToggle)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .then(
+                        if (checked) Modifier.background(MaterialTheme.colorScheme.primary)
+                        else Modifier.border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+                    ),
+                contentAlignment = Alignment.Center
+            ) { if (checked) Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text,
+                color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f) else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (checked) TextDecoration.LineThrough else null
+            )
+        }
+    }
+}
+
+/** The big part-of-day toggle on Home: All, Morning, Afternoon, Evening, each with how many are left. */
+@Composable
+private fun DayPartToggle(
+    selected: com.habitgame.domain.tracker.DayZone?,
+    bounds: com.habitgame.domain.tracker.DayBounds,
+    openCount: (com.habitgame.domain.tracker.DayZone?) -> Int,
+    onSelect: (com.habitgame.domain.tracker.DayZone?) -> Unit
+) {
+    val now = bounds.current()
+    val parts = listOf<com.habitgame.domain.tracker.DayZone?>(
+        null, com.habitgame.domain.tracker.DayZone.MORNING, com.habitgame.domain.tracker.DayZone.AFTERNOON, com.habitgame.domain.tracker.DayZone.EVENING
+    )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        parts.forEach { part ->
+            val on = selected == part
+            val count = openCount(part)
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
+                    .clickable(onClickLabel = "Show ${part?.label ?: "the whole day"}") { onSelect(part) }
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(part?.emoji ?: "📋", fontSize = 24.sp)
+                Text(
+                    part?.label ?: "All",
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                    color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (part == now) "now · $count" else "$count left",
+                    fontSize = 10.sp, maxLines = 1,
+                    color = if (on) MaterialTheme.colorScheme.onPrimary.copy(0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/** "↩ Undo" on a done row, for a mistaken tick. */
+@Composable
+private fun UndoButton(onUndo: () -> Unit) {
+    TextButton(onClick = onUndo, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) {
+        Text("↩ Undo", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 /** Swipe left to right: done (green). Right to left: skip for today (asks first). The row springs back either way. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeableDayRow(onDone: () -> Unit, onSkip: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val state = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
-        when (value) {
-            SwipeToDismissBoxValue.StartToEnd -> onDone()
-            SwipeToDismissBoxValue.EndToStart -> onSkip()
-            SwipeToDismissBoxValue.Settled -> Unit
-        }
-        false   // a done item moves to Completed by itself; a skip waits for the answer
-    })
+private fun SwipeableDayRow(onDone: () -> Unit, onSkip: (() -> Unit)?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val done by rememberUpdatedState(onDone)
+    val skip by rememberUpdatedState(onSkip)
+    var width by remember { mutableIntStateOf(0) }
+    val holder = remember { arrayOfNulls<SwipeToDismissBoxState>(1) }
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            // A flick or a short drag isn't enough: the row has to be pulled about halfway across
+            val pulled = runCatching { kotlin.math.abs(holder[0]!!.requireOffset()) }.getOrDefault(0f)
+            if (width > 0 && pulled >= width * SWIPE_FRACTION) when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> done()
+                SwipeToDismissBoxValue.EndToStart -> skip?.invoke()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false   // a done item moves to Completed by itself; a skip waits for the answer
+        },
+        positionalThreshold = { total -> total * SWIPE_FRACTION }
+    )
+    holder[0] = state
     SwipeToDismissBox(
         state = state,
-        modifier = modifier,
+        modifier = modifier.onSizeChanged { width = it.width },
+        enableDismissFromEndToStart = onSkip != null,
         backgroundContent = {
             val toDone = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
             val toSkip = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
@@ -866,6 +1039,9 @@ private fun SwipeableDayRow(onDone: () -> Unit, onSkip: () -> Unit, modifier: Mo
         }
     ) { content() }
 }
+
+/** How far a row has to be pulled before letting go counts as done or skip. */
+private const val SWIPE_FRACTION = 0.5f
 
 /** "✓ Completed (4)" with an arrow: tap to show or hide what's under it. */
 @Composable
@@ -892,7 +1068,9 @@ fun TaskRow(
     onEdit: () -> Unit = {},
     modifier: Modifier = Modifier,
     onUndoSkip: (() -> Unit)? = null,
-    steps: Pair<Int, Int>? = null
+    steps: Pair<Int, Int>? = null,
+    showCheck: Boolean = true,              // off when a checklist completes it instead
+    onUndo: (() -> Unit)? = null            // a done one can be marked not done
 ) {
     val diffColor = when (task.difficulty) {
         Difficulty.EASY   -> SuccessGreen
@@ -904,7 +1082,7 @@ fun TaskRow(
     val struck = task.isCompleted || onUndoSkip != null
     GameCard(modifier.clickable(onClickLabel = "Edit task", onClick = onEdit)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted && onUndoSkip == null)
+            if (showCheck) RoundCheck(checked = task.isCompleted, onClick = { if (!task.isCompleted) onComplete() }, enabled = !task.isCompleted && onUndoSkip == null)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (time != null) {
@@ -939,6 +1117,7 @@ fun TaskRow(
                     )
                 }
             }
+            if (onUndo != null && task.isCompleted) UndoButton(onUndo)
             if (task.hasFocusTimer && !struck) {
                 Button(
                     onClick = onStartFocus,
@@ -961,7 +1140,14 @@ private fun SkippedNote(onUndo: () -> Unit) {
 }
 
 @Composable
-fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndoSkip: (() -> Unit)? = null, steps: Pair<Int, Int>? = null) {
+fun HabitDashboardRow(
+    habitStatus: HabitWithStatus,
+    onToggle: () -> Unit,
+    onUndoSkip: (() -> Unit)? = null,
+    steps: Pair<Int, Int>? = null,
+    showCheck: Boolean = true,
+    onUndo: (() -> Unit)? = null
+) {
     val habit = habitStatus.habit
     val struck = habitStatus.isCompletedToday || onUndoSkip != null
     GameCard {
@@ -988,7 +1174,9 @@ fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndo
                         textDecoration = if (struck) TextDecoration.LineThrough else null
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // A bad habit: ticking it means a clean day
+                    if (habit.isBad) DifficultyBadge("🚫 AVOID", DangerRed)
                     if (habitStatus.streak > 0) {
                         Text("🔥 ${habitStatus.streak} day streak", color = WarningAmber, fontSize = 11.sp)
                     }
@@ -996,7 +1184,8 @@ fun HabitDashboardRow(habitStatus: HabitWithStatus, onToggle: () -> Unit, onUndo
                 }
                 if (onUndoSkip != null) SkippedNote(onUndoSkip)
             }
-            if (onUndoSkip == null) RoundCheck(checked = habitStatus.isCompletedToday, onClick = onToggle)
+            if (onUndo != null && habitStatus.isCompletedToday) UndoButton(onUndo)
+            else if (onUndoSkip == null && showCheck) RoundCheck(checked = habitStatus.isCompletedToday, onClick = onToggle)
         }
     }
 }

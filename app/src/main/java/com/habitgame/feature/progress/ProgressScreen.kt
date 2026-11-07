@@ -161,7 +161,12 @@ fun ProgressScreen(viewModel: ProgressViewModel = hiltViewModel()) {
                 if (state.zones.isNotEmpty()) item(key = "zones") {
                     GameCard {
                         SectionTitle("🕰️", "Best part of the day", "", "")
-                        Explain("How often habits get done, by when they're set for. ", "Morning is before noon, afternoon until 6 PM, then evening; habits without a time are \"Any time\".")
+                        val fmt = { t: java.time.LocalTime -> com.habitgame.domain.tracker.TaskTiming.formatTime(t) }
+                        Explain(
+                            "How often habits get done, by when they're set for. ",
+                            "Morning ${state.bounds.describe(DayZone.MORNING, fmt)}, afternoon ${state.bounds.describe(DayZone.AFTERNOON, fmt)}, " +
+                                "evening ${state.bounds.describe(DayZone.EVENING, fmt)} (change these in Settings → General). Habits without a time are \"Any time\"."
+                        )
                         state.zones.forEach { z ->
                             val color = when (z.zone) {
                                 DayZone.MORNING -> areaColor("#26A69A")

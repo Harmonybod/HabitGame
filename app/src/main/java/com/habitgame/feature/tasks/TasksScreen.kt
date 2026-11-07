@@ -167,10 +167,8 @@ fun AddTaskBottomSheet(
                 )
             )
             if (!shopping) DescriptionField(description) { description = it }
-            if (!shopping) {
-                AreaPicker(areas, area) { area = it }
-                ChecklistEditor(checklist) { checklist = it }
-            }
+            if (!shopping) AreaPicker(areas, area) { area = it }
+            ChecklistEditor(checklist) { checklist = it }
 
             // Difficulty
             Text("Difficulty", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
@@ -211,6 +209,62 @@ fun AddTaskBottomSheet(
                 EditorLabel("How long")
                 RepeatEndEditor(endDate = repeatEnd, challengeEnd = challengeEnd, onEndChange = { repeatEnd = it })
             }
+
+            // Due (one-time tasks): off means any day; on gives it a day and, if wanted, a time with reminders before it
+            val oneTime = repetition == RepetitionType.ONE_TIME
+            val showTime = !shopping && (!oneTime || hasDueDate)
+            if (!shopping && oneTime) SwitchRow(
+                "📅 Due date",
+                if (hasDueDate) "On that day's list and the 100-day board" else "None: do it any day you like. Turn on to pick a day and time",
+                hasDueDate
+            ) { hasDueDate = it }
+            if (!shopping && oneTime && hasDueDate) OutlinedButton(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Text(
+                    text = "📅 " + (selectedDateMillis?.let {
+                        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d", java.util.Locale.getDefault()))
+                    } ?: "Today"),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // All-day toggle
+            if (showTime) Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("All day", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = isAllDay, onCheckedChange = { isAllDay = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            }
+
+            // Time picker (only when NOT all-day)
+            if (!isAllDay && showTime) {
+                Text("⏰ Time", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                OutlinedButton(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text(
+                        text = String.format("%02d:%02d", selectedHour, selectedMinute),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                // A due time on a one-time task is its deadline: reminders before it
+                if (oneTime) Text("🔔 Reminders $deadlineReminders.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
+
 
             // Category Type
             Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
@@ -315,61 +369,6 @@ fun AddTaskBottomSheet(
                 ShoppingFields(shoppingForm, currency, deadlineReminders)
             }
 
-            // Due (one-time tasks): off means any day; on gives it a day and, if wanted, a time with reminders before it
-            val oneTime = repetition == RepetitionType.ONE_TIME
-            val showTime = !shopping && (!oneTime || hasDueDate)
-            if (!shopping && oneTime) SwitchRow(
-                "📅 Due",
-                if (hasDueDate) "On that day's list and the 100-day board" else "None: do it any day you like",
-                hasDueDate
-            ) { hasDueDate = it }
-            if (!shopping && oneTime && hasDueDate) OutlinedButton(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(
-                    text = "📅 " + (selectedDateMillis?.let {
-                        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                            .format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d", java.util.Locale.getDefault()))
-                    } ?: "Today"),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // All-day toggle
-            if (showTime) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("All day", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = isAllDay, onCheckedChange = { isAllDay = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = androidx.compose.ui.graphics.Color.White,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-            }
-
-            // Time picker (only when NOT all-day)
-            if (!isAllDay && showTime) {
-                Text("⏰ Time", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-                OutlinedButton(
-                    onClick = { showTimePicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text(
-                        text = String.format("%02d:%02d", selectedHour, selectedMinute),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                // A due time on a one-time task is its deadline: reminders before it
-                if (oneTime) Text("🔔 Reminders $deadlineReminders.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-            }
-
             Button(
                 onClick = {
                     if (shopping && name.isNotBlank() && !shoppingForm.deadlinePassed) {
@@ -383,7 +382,7 @@ fun AddTaskBottomSheet(
                                     isAllDay = true, notifyEnabled = false, focusDurationMinutes = 0
                                 )
                             ),
-                            emptyList()
+                            checklist.map { it.trim() }.filter { it.isNotEmpty() }
                         )
                     } else if (name.isNotBlank() && !shopping) {
                         val xp = com.habitgame.domain.engine.EconomyManager.xpForDifficulty(difficulty)

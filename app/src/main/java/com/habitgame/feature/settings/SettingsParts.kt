@@ -35,6 +35,60 @@ internal fun SettingsSectionHeader(title: String) {
         style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
 }
 
+/**
+ * When morning, afternoon and evening start: the big toggle on Home and "Best part of the day" on
+ * Progress use these. Evening runs through the night until morning.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DayPartsSection(user: com.habitgame.core.database.entity.UserEntity, onSave: (Int, Int, Int) -> Unit) {
+    var picking by remember { mutableStateOf<Int?>(null) }   // 0 morning, 1 afternoon, 2 evening
+    var error by remember { mutableStateOf<String?>(null) }
+    val starts = listOf(user.morningStart, user.afternoonStart, user.eveningStart)
+    val parts = listOf("🌅 Morning starts", "☀️ Afternoon starts", "🌙 Evening starts")
+    fun timeOf(minutes: Int) = java.time.LocalTime.of(minutes / 60, minutes % 60)
+
+    picking?.let { index ->
+        val state = rememberTimePickerState(initialHour = starts[index] / 60, initialMinute = starts[index] % 60)
+        AlertDialog(
+            onDismissRequest = { picking = null },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = { Text(parts[index].drop(3)) },
+            text = { TimePicker(state = state) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val next = starts.toMutableList().also { it[index] = state.hour * 60 + state.minute }
+                    if (com.habitgame.domain.tracker.DayBounds(next[0], next[1], next[2]).valid) {
+                        error = null
+                        onSave(next[0], next[1], next[2])
+                    } else {
+                        error = "Morning has to start before afternoon, and afternoon before evening."
+                    }
+                    picking = null
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } }
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Home's Morning / Afternoon / Evening toggle and Progress's \"Best part of the day\" use these. Evening runs through the night until morning.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+        )
+        parts.forEachIndexed { index, label ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = { picking = index }) {
+                    Text(com.habitgame.domain.tracker.TaskTiming.formatTime(timeOf(starts[index])), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        TextButton(onClick = { error = null; onSave(300, 720, 1080) }) { Text("Back to 5 AM · 12 PM · 6 PM") }
+    }
+}
+
 /** The home-screen widgets, each with a button that places it on the home screen. */
 @Composable
 internal fun WidgetsSection() {

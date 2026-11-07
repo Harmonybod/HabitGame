@@ -1,5 +1,6 @@
 package com.habitgame.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -30,5 +31,9 @@ data class UserEntity(
     // Minutes before a shopping item's deadline to remind
     val deadlineReminderTimes: String = "60,15,5",
     // All the coins ever earned, for the stats (totalCoins is what's left to spend)
-    val totalCoinsEarned: Long = 0L
+    val totalCoinsEarned: Long = 0L,
+    // When morning, afternoon and evening start, in minutes after midnight (evening runs through the night)
+    @ColumnInfo(defaultValue = "300") val morningStart: Int = 300,
+    @ColumnInfo(defaultValue = "720") val afternoonStart: Int = 720,
+    @ColumnInfo(defaultValue = "1080") val eveningStart: Int = 1080
 )

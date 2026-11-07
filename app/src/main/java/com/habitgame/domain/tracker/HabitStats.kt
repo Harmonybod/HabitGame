@@ -26,12 +26,49 @@ enum class DayZone(val label: String, val emoji: String) {
     MORNING("Morning", "🌅"), AFTERNOON("Afternoon", "☀️"), EVENING("Evening", "🌙"), ANYTIME("Any time", "🕒");
 
     companion object {
-        fun of(time: LocalTime?): DayZone = when {
-            time == null -> ANYTIME
-            time.hour < 12 -> MORNING
-            time.hour < 18 -> AFTERNOON
-            else -> EVENING
+        fun of(time: LocalTime?, bounds: DayBounds = DayBounds()): DayZone = bounds.zoneOf(time)
+    }
+}
+
+/**
+ * When morning, afternoon and evening start, in minutes after midnight (set in Settings → General).
+ * Evening runs through the night until morning.
+ */
+data class DayBounds(val morning: Int = 300, val afternoon: Int = 720, val evening: Int = 1080) {
+    val valid: Boolean get() = morning in 0 until afternoon && afternoon < evening && evening < 24 * 60
+
+    fun zoneOf(time: LocalTime?): DayZone {
+        if (time == null) return DayZone.ANYTIME
+        val b = if (valid) this else DayBounds()
+        val m = time.hour * 60 + time.minute
+        return when {
+            m >= b.morning && m < b.afternoon -> DayZone.MORNING
+            m >= b.afternoon && m < b.evening -> DayZone.AFTERNOON
+            else -> DayZone.EVENING
         }
+    }
+
+    /** The part of the day it is now. */
+    fun current(now: LocalTime = LocalTime.now()): DayZone = zoneOf(now)
+
+    fun startOf(zone: DayZone): LocalTime = LocalTime.of(0, 0).plusMinutes(
+        when (zone) {
+            DayZone.MORNING -> morning
+            DayZone.AFTERNOON -> afternoon
+            else -> evening
+        }.toLong()
+    )
+
+    /** e.g. "5:00 AM – 12:00 PM". */
+    fun describe(zone: DayZone, format: (LocalTime) -> String): String = when (zone) {
+        DayZone.MORNING -> format(startOf(DayZone.MORNING)) + " – " + format(startOf(DayZone.AFTERNOON))
+        DayZone.AFTERNOON -> format(startOf(DayZone.AFTERNOON)) + " – " + format(startOf(DayZone.EVENING))
+        DayZone.EVENING -> format(startOf(DayZone.EVENING)) + " – " + format(startOf(DayZone.MORNING))
+        DayZone.ANYTIME -> "No set time"
+    }
+
+    companion object {
+        fun of(user: com.habitgame.core.database.entity.UserEntity) = DayBounds(user.morningStart, user.afternoonStart, user.eveningStart)
     }
 }
 

@@ -25,6 +25,7 @@ class TaskCompletionManager @Inject constructor(
     private val streakManager: StreakManager,
     private val trackerManager: TrackerManager,
     private val checklistDao: com.habitgame.core.database.dao.ChecklistDao,
+    private val completionRewards: CompletionRewards,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -45,7 +46,8 @@ class TaskCompletionManager @Inject constructor(
         val xpBase = EconomyManager.xpForDifficulty(task.difficulty)
         val coinBase = EconomyManager.coinsForDifficulty(task.difficulty)
         val result = progressEngine.awardXp(xpBase, multiplier)
-        economyManager.earnCoins(coinBase, "Completed: ${task.name}", multiplier)
+        val coins = economyManager.earnCoins(coinBase, "Completed: ${task.name}", multiplier)
+        completionRewards.remember(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, result.xpEarned, coins)
         streakManager.recordProductiveDay(xpBase, coinBase.toInt())
 
         val amount = savedAmount ?: task.savingAmount
@@ -63,4 +65,24 @@ class TaskCompletionManager @Inject constructor(
     }
 
     suspend fun complete(task: TaskEntity, savedAmount: Double? = null): LevelUpResult? = complete(task.id, savedAmount)
+
+    /**
+     * Back to not done (ticked by mistake): its XP and coins are taken back, the money a savings
+     * task logged today is removed, and its checklist is unticked for today.
+     */
+    suspend fun undo(taskId: Long) {
+        val task = taskRepo.getTaskById(taskId) ?: return
+        if (!task.isCompleted) return
+        val today = LocalDate.now().toString()
+        taskRepo.uncompleteTask(task.id)
+        userRepo.uncountTaskDone()
+        completionRewards.takeBack(
+            com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, task.name,
+            EconomyManager.xpForDifficulty(task.difficulty), EconomyManager.coinsForDifficulty(task.difficulty)
+        )
+        if (task.activityCategory == ActivityCategory.SAVINGS) trackerRepo.deleteSavingForTask(task.id, today)
+        checklistDao.uncheckOn(com.habitgame.core.database.entity.DaySkipEntity.KIND_TASK, task.id, today)
+        taskRepo.getTaskById(task.id)?.let { trackerManager.scheduleReminder(it) }
+        trackerManager.snapshotToday()
+    }
 }

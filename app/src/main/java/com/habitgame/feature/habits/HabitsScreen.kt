@@ -43,7 +43,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitsScreen(
-    onOpenTemplates: (area: String) -> Unit = {},
+    onOpenTemplates: (area: String, bad: Boolean) -> Unit = { _, _ -> },
     onNavigateFocus: (Long) -> Unit = {},
     startFilter: PlanFilter? = null,
     viewModel: HabitsViewModel = hiltViewModel()
@@ -63,15 +63,27 @@ fun HabitsScreen(
     var newArea by remember { mutableStateOf(false) }
     val folded = remember { mutableStateMapOf<String, Boolean>() }
     var showLater by rememberSaveable { mutableStateOf(false) }
+    var undoing by remember { mutableStateOf<PlanItem?>(null) }
     var showBefore by rememberSaveable { mutableStateOf(false) }
     val currentArea = (state.filter as? PlanFilter.Area)?.name.orEmpty()
 
     // ── Sheets ──
+    undoing?.let { item ->
+        AlertDialog(
+            onDismissRequest = { undoing = null },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = { Text("Mark “${item.name}” as not done?", fontWeight = FontWeight.Bold) },
+            text = { Text("For when it was ticked by mistake. The XP and coins it earned are taken back.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            confirmButton = { TextButton(onClick = { viewModel.undo(item); undoing = null }) { Text("Not done", fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = { undoing = null }) { Text("Cancel") } }
+        )
+    }
     if (showAddMenu) {
         AddMenuSheet(
             area = currentArea,
             onDismiss = { showAddMenu = false },
-            onHabit = { showAddMenu = false; onOpenTemplates(currentArea) },
+            onHabit = { showAddMenu = false; onOpenTemplates(currentArea, false) },
+            onBadHabit = { showAddMenu = false; onOpenTemplates(currentArea, true) },
             onTask = { showAddMenu = false; addingTask = false },
             onShopping = { showAddMenu = false; addingTask = true },
             onArea = { showAddMenu = false; newArea = true }
@@ -93,8 +105,9 @@ fun HabitsScreen(
         if (task.isShopping) {
             com.habitgame.feature.tasks.EditShoppingSheet(
                 task = task, currency = currency, reminderText = deadlineReminders,
+                checklist = item.steps.map { it.text },
                 onDismiss = { editingTask = null },
-                onSave = { viewModel.updateTask(it); editingTask = null },
+                onSave = { t, steps -> viewModel.updateTask(t, steps); editingTask = null },
                 onDelete = { viewModel.deleteTask(task); editingTask = null }
             )
         } else {
@@ -191,7 +204,7 @@ fun HabitsScreen(
                             EmptyHint(
                                 text = if (folder.area != null) "No habits or tasks in ${folder.title} today." else "Nothing here yet.",
                                 onAdd = {
-                                    if (folder.area != null) onOpenTemplates(folder.area.name) else showAddMenu = true
+                                    if (folder.area != null) onOpenTemplates(folder.area.name, false) else showAddMenu = true
                                 }
                             )
                         }
@@ -199,7 +212,8 @@ fun HabitsScreen(
                     items(folder.items, key = { "${folder.key}_${it.key}" }) { item ->
                         PlanRow(
                             item = item,
-                            onToggle = { viewModel.toggle(item) },
+                            // A done task asks before it's marked not done
+                            onToggle = { if (item.task != null && item.done) undoing = item else viewModel.toggle(item) },
                             onToggleStep = viewModel::toggleStep,
                             onEdit = { if (item.habit != null) editingHabit = item else editingTask = item },
                             onStartFocus = { item.task?.let { onNavigateFocus(it.id) } },
@@ -337,9 +351,9 @@ fun PlanRow(
     val struck = item.done || item.skipped
     GameCard(modifier.alpha(if (dim) 0.65f else 1f).clickable(onClickLabel = "Edit", onClick = onEdit)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (onToggle != null) {
-                // A done task stays done; a habit can be unticked
-                RoundCheck(checked = item.done, onClick = onToggle, enabled = !item.skipped && (item.habit != null || !item.done))
+            if (onToggle != null && (item.steps.isEmpty() || item.done)) {
+                // With a checklist it's done by ticking its steps; a done one can be unticked (a task asks first)
+                RoundCheck(checked = item.done, onClick = onToggle, enabled = !item.skipped)
             }
             item.habit?.let { Text(it.iconEmoji, fontSize = 24.sp) }
             item.task?.let { task ->
@@ -372,6 +386,7 @@ fun PlanRow(
                 )
                 Text(meta.joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 2)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (item.habit?.isBad == true) DifficultyBadge("🚫 AVOID", DangerRed)
                     if (item.streak > 0) Text("🔥${item.streak}", color = WarningAmber.readable(), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     val xp = item.habit?.xpReward ?: item.task!!.xpReward
                     val coins = item.habit?.coinReward ?: item.task!!.coinReward
@@ -410,13 +425,14 @@ fun PlanRow(
 /** What + adds. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddMenuSheet(area: String, onDismiss: () -> Unit, onHabit: () -> Unit, onTask: () -> Unit, onShopping: () -> Unit, onArea: () -> Unit) {
+private fun AddMenuSheet(area: String, onDismiss: () -> Unit, onHabit: () -> Unit, onBadHabit: () -> Unit, onTask: () -> Unit, onShopping: () -> Unit, onArea: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             if (area.isNotEmpty()) {
                 Text("Adding to $area", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
             }
             AddMenuRow("🌱", SuccessGreen, "New habit", "Pick from folders of ready-made habits, or make your own", onHabit)
+            AddMenuRow("🚫", DangerRed, "Break a bad habit", "Something to stop or cut down; tick it each day you stay clean", onBadHabit)
             AddMenuRow("📋", CyanXp, "New task", "Something to do once or on repeat, with an optional checklist", onTask)
             AddMenuRow("🛒", WarningAmber, "Shopping item", "Something to buy, with a price and deadline", onShopping)
             AddMenuRow("📁", NeonPink, "New area", "A folder for habits and tasks that go together", onArea)
@@ -468,6 +484,7 @@ fun HabitEditorSheet(
     var showOnHome by remember(initial) { mutableStateOf(initial?.showOnHome ?: false) }
     var area by remember(initial) { mutableStateOf(initial?.groupName.orEmpty()) }
     var checklist by remember(initial) { mutableStateOf(steps) }
+    var bad by remember(initial) { mutableStateOf(initial?.isBad ?: false) }
 
     val availableIcons = (listOf(icon) + listOf("🎯", "📚", "🏋️", "💻", "🧘", "🏃", "💧", "🍎", "📝", "🎵", "🍳", "🍌", "🍛", "🥤", "🍽️", "🥛", "🪥", "🚿", "😴", "🧹")).distinct()
 
@@ -476,11 +493,24 @@ fun HabitEditorSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(if (isNew) "New habit" else "Edit habit", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+            Text(
+                when {
+                    bad && isNew -> "Break a bad habit"
+                    bad -> "Edit bad habit"
+                    isNew -> "New habit"
+                    else -> "Edit habit"
+                },
+                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold
+            )
+            if (bad) Text(
+                "Tick it each day you stay clean. The difficulty sets the XP and coins a clean day earns.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+            )
 
             OutlinedTextField(
                 value = name, onValueChange = { name = it },
-                label = { Text("Habit name") },
+                label = { Text(if (bad) "What to stop or cut down" else "Habit name") },
+                placeholder = { if (bad) Text("e.g. No sugary drinks") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = fieldColors()
             )
@@ -519,6 +549,12 @@ fun HabitEditorSheet(
 
             AreaPicker(areas, area) { area = it }
 
+            com.habitgame.feature.tasks.SwitchRow(
+                "🚫 Bad habit to break",
+                if (bad) "Ticking it means you stayed clean that day" else "Off: a habit to build",
+                bad
+            ) { bad = it }
+
             EditorLabel("Difficulty")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(Difficulty.entries.toList()) { d -> ChoiceChip(d.name, difficulty == d) { difficulty = d } }
@@ -554,6 +590,7 @@ fun HabitEditorSheet(
                             frequencyDays = days.joinToString(","),
                             repeatEndDate = endDate?.toString(),
                             groupName = area,
+                            isBad = bad,
                             // A new habit starts today, even when filled in from a ready-made one
                             createdAt = if (isNew) System.currentTimeMillis() else base.createdAt
                         ),

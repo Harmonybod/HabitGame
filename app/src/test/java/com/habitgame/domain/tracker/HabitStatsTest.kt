@@ -77,6 +77,17 @@ class HabitStatsTest {
     }
 
     @Test
+    fun ownPartsOfTheDayAndEveningRunsThroughTheNight() {
+        val early = DayBounds(morning = 6 * 60, afternoon = 13 * 60, evening = 19 * 60)
+        assertEquals(DayZone.EVENING, early.zoneOf(LocalTime.of(5, 30)))      // before morning: still the night
+        assertEquals(DayZone.MORNING, early.zoneOf(LocalTime.of(12, 30)))
+        assertEquals(DayZone.AFTERNOON, early.zoneOf(LocalTime.of(13, 0)))
+        assertEquals(DayZone.EVENING, early.zoneOf(LocalTime.of(23, 0)))
+        // Times out of order fall back to the defaults
+        assertEquals(DayZone.AFTERNOON, DayBounds(800, 700, 600).zoneOf(LocalTime.of(13, 0)))
+    }
+
+    @Test
     fun previousRangeIsTheSameLengthJustBefore() {
         val dates = lastDays(7)
         val prev = HabitStats.previous(dates)

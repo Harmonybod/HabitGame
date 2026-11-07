@@ -41,6 +41,13 @@ interface UserDao {
     @Query("DELETE FROM user")
     suspend fun deleteAll()
 
+    /** Takes back coins a mistaken completion paid (never below zero). */
+    @Query("UPDATE user SET totalCoins = MAX(0, totalCoins - :coins), totalCoinsEarned = MAX(0, totalCoinsEarned - :coins) WHERE id = 1")
+    suspend fun takeBackCoins(coins: Long)
+
+    @Query("UPDATE user SET totalTasksDone = MAX(0, totalTasksDone - 1) WHERE id = 1")
+    suspend fun uncountTaskDone()
+
     @Query("UPDATE user SET currentXp = MAX(0, currentXp - :xp) WHERE id = 1")
     suspend fun deductXp(xp: Int)
 }

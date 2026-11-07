@@ -59,7 +59,7 @@ fun HabitGameNavGraph(navController: NavHostController) {
             )
         }
         // Habits and tasks on one page; "tasks" opens it showing tasks
-        val openTemplates: (String) -> Unit = { area -> navController.navigate("templates?area=" + android.net.Uri.encode(area)) }
+        val openTemplates: (String, Boolean) -> Unit = { area, bad -> navController.navigate("templates?area=" + android.net.Uri.encode(area) + "&bad=" + bad) }
         val openFocus: (Long) -> Unit = { taskId -> navController.navigate("focus?taskId=$taskId") }
         composable("habits") {
             ScreenFrame { HabitsScreen(onOpenTemplates = openTemplates, onNavigateFocus = openFocus) }
@@ -70,12 +70,16 @@ fun HabitGameNavGraph(navController: NavHostController) {
             }
         }
         composable(
-            "templates?area={area}",
-            arguments = listOf(navArgument("area") { type = NavType.StringType; defaultValue = "" })
+            "templates?area={area}&bad={bad}",
+            arguments = listOf(
+                navArgument("area") { type = NavType.StringType; defaultValue = "" },
+                navArgument("bad") { type = NavType.BoolType; defaultValue = false }
+            )
         ) { entry ->
             ScreenFrame {
                 com.habitgame.feature.habits.TemplatesScreen(
                     area = entry.arguments?.getString("area").orEmpty(),
+                    bad = entry.arguments?.getBoolean("bad") ?: false,
                     onDone = goBack
                 )
             }

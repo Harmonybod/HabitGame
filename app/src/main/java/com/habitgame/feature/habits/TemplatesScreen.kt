@@ -78,7 +78,8 @@ class TemplatesViewModel @Inject constructor(
         difficulty = template.difficulty,
         xpReward = EconomyManager.xpForDifficulty(template.difficulty),
         coinReward = EconomyManager.coinsForDifficulty(template.difficulty).toInt(),
-        groupName = folder.name
+        groupName = folder.name,
+        isBad = folder.bad
     )
 
     fun add(habit: HabitEntity, steps: List<String>) {
@@ -112,6 +113,7 @@ class TemplatesViewModel @Inject constructor(
 @Composable
 fun TemplatesScreen(
     area: String = "",
+    bad: Boolean = false,
     onDone: () -> Unit,
     viewModel: TemplatesViewModel = hiltViewModel()
 ) {
@@ -120,7 +122,7 @@ fun TemplatesScreen(
     val existing by viewModel.existing.collectAsState()
     val challengeEnd by viewModel.challengeEnd.collectAsState()
     // Opened from inside an area that has a folder: start in it
-    var openFolder by remember { mutableStateOf(HabitTemplates.folder(area)) }
+    var openFolder by remember { mutableStateOf(if (bad) HabitTemplates.folder(HabitTemplates.BAD_HABITS) else HabitTemplates.folder(area)) }
     var draft by remember { mutableStateOf<Pair<HabitEntity, List<String>>?>(null) }
 
     BackHandler(enabled = openFolder != null) { openFolder = null }
@@ -203,7 +205,10 @@ fun TemplatesScreen(
         // Your own habit, in the area you came from
         Button(
             onClick = {
-                val own = HabitEntity(name = "", groupName = openFolder?.name ?: area, difficulty = com.habitgame.core.database.entity.Difficulty.MEDIUM)
+                val own = HabitEntity(
+                    name = "", groupName = openFolder?.name ?: area, difficulty = com.habitgame.core.database.entity.Difficulty.MEDIUM,
+                    isBad = openFolder?.bad ?: bad
+                )
                 draft = own to emptyList()
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(52.dp),

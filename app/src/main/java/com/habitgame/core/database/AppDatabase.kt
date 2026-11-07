@@ -29,9 +29,10 @@ import com.habitgame.core.database.entity.*
         RewardClaimEntity::class,
         DaySkipEntity::class,
         AreaEntity::class,
-        ChecklistItemEntity::class
+        ChecklistItemEntity::class,
+        CompletionReceiptEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -57,9 +58,28 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun areaDao(): AreaDao
     abstract fun checklistDao(): ChecklistDao
+    abstract fun completionReceiptDao(): CompletionReceiptDao
 
     companion object {
         const val DATABASE_NAME = "habitgame_db"
+
+        /**
+         * Bad habits to break, the user's own morning / afternoon / evening times, and what each
+         * completion paid (so a mistaken one can be undone).
+         */
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN isBad INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE habits SET isBad = 1 WHERE groupName = 'Break bad habits'")
+                db.execSQL("ALTER TABLE user ADD COLUMN morningStart INTEGER NOT NULL DEFAULT 300")
+                db.execSQL("ALTER TABLE user ADD COLUMN afternoonStart INTEGER NOT NULL DEFAULT 720")
+                db.execSQL("ALTER TABLE user ADD COLUMN eveningStart INTEGER NOT NULL DEFAULT 1080")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS completion_receipts (`key` TEXT PRIMARY KEY NOT NULL, " +
+                        "xp INTEGER NOT NULL, coins INTEGER NOT NULL, createdAt INTEGER NOT NULL)"
+                )
+            }
+        }
 
         /**
          * Areas (folders for habits and tasks; existing habit groups such as "Weight gain" become

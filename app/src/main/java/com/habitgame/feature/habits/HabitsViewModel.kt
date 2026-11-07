@@ -227,6 +227,14 @@ class HabitsViewModel @Inject constructor(
         }
     }
 
+    /** Back to not done (ticked by mistake): the XP and coins it earned are taken back. */
+    fun undo(item: PlanItem) {
+        viewModelScope.launch {
+            item.task?.let { taskCompletionManager.undo(it.id) }
+            item.habit?.let { if (habitRepo.isHabitCompletedToday(it.id)) habitManager.uncompleteHabit(it.id) }
+        }
+    }
+
     fun toggleStep(step: ChecklistItemEntity) {
         viewModelScope.launch { checklistManager.toggle(step.id) }
     }

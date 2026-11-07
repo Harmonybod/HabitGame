@@ -55,6 +55,7 @@ data class ProgressUi(
     val areaCards: List<AreaCardUi> = emptyList(),
     val habitCards: List<HabitCardUi> = emptyList(),
     val daysTracked: Int = 0,                       // days since the first habit began
+    val bounds: DayBounds = DayBounds(),            // when morning, afternoon and evening start
     val xp: List<Int> = emptyList(),
     val focusMinutes: List<Int> = emptyList(),
     val savings: List<SavingsDay> = emptyList(),    // all 100 challenge days
@@ -85,7 +86,8 @@ class ProgressViewModel @Inject constructor(
     private val focusRepo: FocusSessionRepository,
     private val habitRepo: HabitRepository,
     private val areaRepo: AreaRepository,
-    private val skipDao: DaySkipDao
+    private val skipDao: DaySkipDao,
+    private val userRepo: com.habitgame.core.database.repository.UserRepository
 ) : ViewModel() {
 
     private val range = MutableStateFlow(28)
@@ -125,11 +127,12 @@ class ProgressViewModel @Inject constructor(
                 trackerRepo.observeSavings()
             ) { xp, focus, savings -> Triple(xp, focus, savings) }
 
-            combine(habitData, charts) { data, (xp, focus, savings) ->
+            combine(habitData, charts, userRepo.observeUser()) { data, (xp, focus, savings), user ->
+                val bounds = user?.let { DayBounds.of(it) } ?: DayBounds()
                 val xpByDay = xp.associate { it.date to it.xp }
                 val focusByDay = focus.associate { it.date to it.minutes.toInt() }
                 val goal = challenge?.savingsGoal ?: 0.0
-                build(days, areaName, dates, today, data).copy(
+                build(days, areaName, dates, today, data, bounds).copy(
                     xp = dates.map { xpByDay[it.toString()] ?: 0 },
                     focusMinutes = dates.map { focusByDay[it.toString()] ?: 0 },
                     savings = ProgressStats.savings(start, goal, savings, today),
@@ -141,7 +144,7 @@ class ProgressViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProgressUi())
 
-    private fun build(days: Int, areaName: String?, dates: List<LocalDate>, today: LocalDate, data: HabitData): ProgressUi {
+    private fun build(days: Int, areaName: String?, dates: List<LocalDate>, today: LocalDate, data: HabitData, bounds: DayBounds): ProgressUi {
         val previousDates = HabitStats.previous(dates)
         fun done(h: HabitEntity) = data.done[h.id].orEmpty()
         fun skipped(h: HabitEntity) = data.skipped[h.id].orEmpty()
@@ -154,7 +157,7 @@ class ProgressViewModel @Inject constructor(
         val previousScores = if (areaName == null) ProgressStats.completionRates(previousDates, data.progress, today) else HabitStats.dayScores(before.values.toList(), previousDates.size)
 
         val zones = DayZone.entries.mapNotNull { zone ->
-            val inZone = habits.filter { DayZone.of(TaskTiming.timeOfDay(it)) == zone }
+            val inZone = habits.filter { bounds.zoneOf(TaskTiming.timeOfDay(it)) == zone }
             if (inZone.isEmpty()) null else ZoneUi(zone, inZone.fold(HabitRate()) { acc, h -> acc + HabitStats.rate(now.getValue(h)) }, inZone.size)
         }
         val skipCounts = habits.associateWith { h -> now.getValue(h).count { it == HabitDayStatus.SKIPPED } }
@@ -196,6 +199,7 @@ class ProgressViewModel @Inject constructor(
             areaCards = areaCards,
             habitCards = cards,
             daysTracked = firstDay?.let { ChronoUnit.DAYS.between(it, today).toInt() + 1 } ?: 0,
+            bounds = bounds,
             today = today,
             loaded = true
         )

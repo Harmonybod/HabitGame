@@ -21,7 +21,8 @@ data class TemplateFolder(
     val emoji: String,
     val color: Long,                            // ARGB
     val blurb: String,
-    val templates: List<HabitTemplate>
+    val templates: List<HabitTemplate>,
+    val bad: Boolean = false        // bad habits to break: ticking one means a clean day
 ) {
     val colorHex: String get() = "#%06X".format(color and 0xFFFFFF)
 }
@@ -166,9 +167,12 @@ object HabitTemplates {
                 HabitTemplate("Don't skip meals", "🍽️", "Three meals today", at(20)),
                 HabitTemplate("Less gaming", "🎮", "Under 1 hour", at(21)),
                 HabitTemplate("No nail biting", "💅", "All day", at(21))
-            )
+            ),
+            bad = true
         )
     )
+
+    const val BAD_HABITS = "Break bad habits"
 
     fun folder(name: String): TemplateFolder? = FOLDERS.firstOrNull { it.name.equals(name, ignoreCase = true) }
 

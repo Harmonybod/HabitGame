@@ -49,7 +49,8 @@ data class DayItem(
     val task: TaskEntity? = null,
     val habit: HabitWithStatus? = null,
     val done: Boolean,
-    val skipped: Boolean
+    val skipped: Boolean,
+    val doneAt: Long? = null      // when it was done or skipped, for the Completed list (newest first)
 ) {
     val key: String get() = task?.let { "task_${it.id}" } ?: "habit_${habit!!.habit.id}"
     val time: LocalTime? get() = task?.let { TaskTiming.timeOfDay(it) } ?: habit?.let { TaskTiming.timeOfDay(it.habit) }
@@ -78,8 +79,17 @@ data class DashboardUiState(
     val sessions: List<com.habitgame.domain.engine.ActiveSession> = emptyList(),  // running Shop timers
     val charts: WeekCharts = WeekCharts(),  // this week's XP and savings graphs
     val areas: List<com.habitgame.core.database.entity.AreaEntity> = emptyList(),
-    val steps: Map<String, List<com.habitgame.core.database.entity.ChecklistItemEntity>> = emptyMap()  // checklists by "task:3" / "habit:5"
+    val steps: Map<String, List<com.habitgame.core.database.entity.ChecklistItemEntity>> = emptyMap(),  // checklists by "task:3" / "habit:5"
+    val bounds: com.habitgame.domain.tracker.DayBounds = com.habitgame.domain.tracker.DayBounds(),
+    val dayPart: com.habitgame.domain.tracker.DayZone? = null   // the part of the day shown; null = all of it
 ) {
+    /** A row's checklist steps (empty without one). */
+    fun stepList(item: DayItem): List<com.habitgame.core.database.entity.ChecklistItemEntity> =
+        item.task?.let { steps["task:${it.id}"] } ?: item.habit?.let { steps["habit:${it.habit.id}"] } ?: emptyList()
+
+    /** In the part of the day picked on Home; things without a time show in every part. */
+    fun inDayPart(item: DayItem): Boolean = dayPart == null || item.time == null || bounds.zoneOf(item.time) == dayPart
+
     /** "2 of 5" for a row's checklist, or null without one. */
     fun stepsOf(kind: String, id: Long, repeats: Boolean): Pair<Int, Int>? =
         steps["$kind:$id"]?.takeIf { it.isNotEmpty() }?.let {
@@ -108,6 +118,7 @@ class DashboardViewModel @Inject constructor(
     private val areaRepo: com.habitgame.core.database.repository.AreaRepository,
     private val checklistManager: com.habitgame.domain.engine.ChecklistManager,
     checklistDao: com.habitgame.core.database.dao.ChecklistDao,
+    private val habitCompletionDao: com.habitgame.core.database.dao.HabitCompletionDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -160,20 +171,27 @@ class DashboardViewModel @Inject constructor(
                 habitRepo.observeActiveHabits(),
                 habitRepo.observeCompletionsForDate(today.toString()),
                 skipDao.observeForDate(today.toString())
-            ) { user, tasks, allHabits, _, skips ->
+            ) { user, tasks, allHabits, completions, skips ->
                 val u = user ?: UserEntity()
                 val skipped = skips.map { it.key }.toSet()
+                val skippedAt = skips.associate { it.key to it.createdAt }
+                val habitDoneAt = completions.associate { it.habitId to it.completedAt }
                 fun isSkipped(kind: String, id: Long) =
                     com.habitgame.core.database.entity.DaySkipEntity.key(kind, id, today.toString()) in skipped
                 // Today's tasks and habits in one list, by time
                 val taskItems = tasks.filter { TaskTiming.countsToward(it, today) }.map { task ->
-                    DayItem(task = task, done = TaskTiming.completedOn(task, today), skipped = isSkipped("task", task.id))
+                    val skipKey = com.habitgame.core.database.entity.DaySkipEntity.key("task", task.id, today.toString())
+                    DayItem(
+                        task = task, done = TaskTiming.completedOn(task, today), skipped = isSkipped("task", task.id),
+                        doneAt = if (TaskTiming.completedOn(task, today)) task.completedAt else skippedAt[skipKey]
+                    )
                 }
                 val habitItems = habitManager.filterTodaysHabits(allHabits).map { habit ->
                     val done = habitRepo.isHabitCompletedToday(habit.id)
                     DayItem(
                         habit = HabitWithStatus(habit = habit, isCompletedToday = done, streak = habitRepo.getHabitStreak(habit.id)),
-                        done = done, skipped = isSkipped("habit", habit.id)
+                        done = done, skipped = isSkipped("habit", habit.id),
+                        doneAt = habitDoneAt[habit.id] ?: skippedAt[com.habitgame.core.database.entity.DaySkipEntity.key("habit", habit.id, today.toString())]
                     )
                 }
                 val dayItems = (taskItems + habitItems).sortedWith(DayItem.ORDER)
@@ -184,8 +202,12 @@ class DashboardViewModel @Inject constructor(
                 Triple(u, dayItems, notes) to anytime
             }.collect { (data, anytime) ->
                 val (u, dayItems, notes) = data
+                val bounds = com.habitgame.domain.tracker.DayBounds.of(u)
                 _state.update {
                     it.copy(
+                        bounds = bounds,
+                        // Opens on the part of the day it is now, until one is picked
+                        dayPart = if (dayPartPicked) it.dayPart else bounds.current(),
                         user = u,
                         dayItems = dayItems,
                         anytimeTasks = anytime,
@@ -261,6 +283,27 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }.collect { charts -> _state.update { it.copy(charts = charts) } }
+    }
+
+    private var dayPartPicked = false
+
+    /** The big Morning / Afternoon / Evening toggle; null shows the whole day. */
+    fun selectDayPart(part: com.habitgame.domain.tracker.DayZone?) {
+        dayPartPicked = true
+        _state.update { it.copy(dayPart = part) }
+    }
+
+    /** Ticks or unticks one checklist step; the last one completes its task or habit. */
+    fun toggleStep(step: com.habitgame.core.database.entity.ChecklistItemEntity) {
+        viewModelScope.launch { checklistManager.toggle(step.id) }
+    }
+
+    /** Back to not done (ticked by mistake): the XP and coins it paid are taken back. */
+    fun undoItem(item: DayItem) {
+        viewModelScope.launch {
+            item.task?.let { taskCompletionManager.undo(it.id) }
+            item.habit?.let { habitManager.uncompleteHabit(it.habit.id) }
+        }
     }
 
     /** Swiped left to right: done. Habits already done stay done. */
