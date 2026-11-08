@@ -23,8 +23,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Raise versionCode for every APK you install over an older one
-        versionCode = 26
-        versionName = "3.2.2"
+        versionCode = 27
+        versionName = "3.2.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

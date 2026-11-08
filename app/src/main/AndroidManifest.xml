@@ -47,12 +47,34 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.HabitGame">
+            android:theme="@style/Theme.HabitGame" />
+
+        <!-- The app-drawer entry, one per app icon (Settings → Customization → App icon turns one on
+             and the other off). The full wordmark is the default. -->
+        <activity-alias
+            android:name=".LauncherWordmark"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherMark"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:icon="@mipmap/ic_launcher_mark"
+            android:roundIcon="@mipmap/ic_launcher_mark_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Two entries in the share sheet. A song or album from a music app goes into today's journal… -->
         <activity-alias

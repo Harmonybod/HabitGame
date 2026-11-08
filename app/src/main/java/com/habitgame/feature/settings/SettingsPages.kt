@@ -429,7 +429,7 @@ private val ACCENTS = listOf(
     "#607D8B" to "Slate"
 )
 
-/** Themes (with previews), Glass, icon packs, your badge, accent colour and home-screen widgets. */
+/** The app icon, themes (with previews), Glass, icon packs, your badge, accent colour and home-screen widgets. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CustomizationScreen(
@@ -447,8 +447,21 @@ fun CustomizationScreen(
     var openIcons by rememberSaveable { mutableStateOf(false) }
     var openBadges by rememberSaveable { mutableStateOf(false) }
     var openWidgets by rememberSaveable { mutableStateOf(false) }
+    var openAppIcon by rememberSaveable { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var appIcon by remember { mutableStateOf(com.habitgame.domain.appicon.LauncherIcon.current(context)) }
 
     SettingsPage("Customization", onBack) {
+        item { CategoryHeader("📱", "App icon", appIcon.title, openAppIcon) { openAppIcon = !openAppIcon } }
+        if (openAppIcon) item {
+            GameCard {
+                AppIconPicker(appIcon) { icon ->
+                    com.habitgame.domain.appicon.LauncherIcon.use(context, icon)
+                    appIcon = icon
+                }
+            }
+        }
+
         item {
             val owned = ThemeCatalog.all.count { it.free || shopThemes[it.id]?.isOwned == true }
             CategoryHeader(
