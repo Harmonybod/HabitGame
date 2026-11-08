@@ -183,7 +183,7 @@ fun GeneralSettingsScreen(
         }
         item {
             SettingsSectionHeader("👋 Getting started")
-            GameCard { SettingsRow("📖", "Show the intro again", "The step-by-step guide to how HabitGame works", onClick = onShowIntro) }
+            GameCard { SettingsRow("📖", "Show the intro again", "The step-by-step guide to how bits works", onClick = onShowIntro) }
         }
     }
 }
@@ -204,7 +204,7 @@ fun DevicesScreen(onBack: () -> Unit) {
             title = { Text("Remove ${device.name}?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Text(
-                    "It's taken off this list. It isn't signed out: if HabitGame is opened on it while it's still signed in, it shows up again.",
+                    "It's taken off this list. It isn't signed out: if bits is opened on it while it's still signed in, it shows up again.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -290,7 +290,7 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
     SettingsPage("Notifications", onBack) {
         if (!allowed) item {
             GameCard {
-                Text("🔕 Notifications are off for HabitGame", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text("🔕 Notifications are off for bits", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text("Reminders can't come until they're allowed.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {
@@ -605,7 +605,7 @@ fun CustomizationScreen(
             }
         }
 
-        item { CategoryHeader("🧩", "Widgets", "Add HabitGame to your home screen", openWidgets) { openWidgets = !openWidgets } }
+        item { CategoryHeader("🧩", "Widgets", "Add bits to your home screen", openWidgets) { openWidgets = !openWidgets } }
         if (openWidgets) item { GameCard { WidgetsSection() } }
     }
 }

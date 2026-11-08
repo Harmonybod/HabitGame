@@ -208,7 +208,7 @@ private fun MusicOfTheDay(state: JournalUiState, viewModel: JournalViewModel) {
         }
     } else {
         Text(
-            "Share a song or album from Spotify, YouTube Music, Apple Music, Deezer or SoundCloud to HabitGame, or paste its link here.",
+            "Share a song or album from Spotify, YouTube Music, Apple Music, Deezer or SoundCloud to bits, or paste its link here.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall
         )

@@ -98,7 +98,7 @@ fun AppLockScreen(onBack: () -> Unit, viewModel: AppLockViewModel = hiltViewMode
             GameCard {
                 Text("⚠️ Locking needs two permissions", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Find HabitGame in the list, switch it on, then come back.",
+                    "Find bits in the list, switch it on, then come back.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(10.dp))

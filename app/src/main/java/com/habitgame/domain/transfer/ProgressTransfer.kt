@@ -88,7 +88,7 @@ class ProgressTransfer @Inject constructor(
     fun read(code: String): TransferPayload {
         val payload = runCatching { gson.fromJson(decode(code), TransferPayload::class.java) }.getOrNull()
             ?: throw IllegalArgumentException("That code isn't complete. Copy the whole code and try again.")
-        if (payload.format > FORMAT) throw IllegalArgumentException("That code is from a newer HabitGame. Update this phone first.")
+        if (payload.format > FORMAT) throw IllegalArgumentException("That code is from a newer version of bits. Update this phone first.")
         return payload
     }
 
@@ -155,7 +155,7 @@ class ProgressTransfer @Inject constructor(
         /** Undoes [encode]. Spaces and line breaks added by chat apps are ignored. */
         fun decode(code: String): String {
             val clean = code.filterNot { it.isWhitespace() }
-            require(clean.startsWith(PREFIX)) { "Not a HabitGame transfer code" }
+            require(clean.startsWith(PREFIX)) { "Not a bits transfer code" }
             val bytes = Base64.getUrlDecoder().decode(clean.removePrefix(PREFIX))
             return GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readBytes().toString(Charsets.UTF_8) }
         }

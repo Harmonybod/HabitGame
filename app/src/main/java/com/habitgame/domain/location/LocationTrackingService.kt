@@ -59,7 +59,7 @@ class LocationTrackingService : Service() {
             .any { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
         if (!hasLocation) return false
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("HabitGame Location Tracking")
+            .setContentTitle("bits location tracking")
             .setContentText("Monitoring location for task completion...")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()

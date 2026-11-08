@@ -42,7 +42,7 @@ object CalendarEvents {
         description?.substringAfterLast(MARKER_PREFIX, "")?.substringBefore("]", "")?.takeIf { it.isNotEmpty() }
 
     private fun describe(text: String, key: String) =
-        (if (text.isBlank()) "" else text.trim() + "\n\n") + "Added by HabitGame. " + marker(key)
+        (if (text.isBlank()) "" else text.trim() + "\n\n") + "Added by bits. " + marker(key)
 
     /**
      * The event for [task], or null when it has nothing to show in a calendar (no day or time).
@@ -53,7 +53,7 @@ object CalendarEvents {
         if (task.isShopping) {
             val deadline = task.deadlineAt ?: return null
             if (task.isCompleted) return null
-            return EventSpec(key, "🛒 Deadline: buy ${task.name}", describe("Not bought by then? It's removed from your HabitGame list.", key), deadline, 15, reminders = deadlineReminders)
+            return EventSpec(key, "🛒 Deadline: buy ${task.name}", describe("Not bought by then? It's removed from your bits list.", key), deadline, 15, reminders = deadlineReminders)
         }
         val time = TaskTiming.timeOfDay(task)
         val minutes = if (task.hasFocusTimer) task.focusDurationMinutes else DEFAULT_MINUTES

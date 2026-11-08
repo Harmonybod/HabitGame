@@ -22,7 +22,7 @@ private data class Step(val tag: String, val title: String, val body: String)
 
 private val STEPS = listOf(
     Step("Welcome", "Your next 100 days, as a game",
-        "HabitGame turns the habits you want — reading, coding, eating well, saving — into a game you play every day."),
+        "bits turns the habits you want — reading, coding, eating well, saving — into a game you play every day."),
     Step("Step 1", "Tick off your day",
         "Your tasks and habits remind you at their time. Every one you finish fills today's circle on the 100-day board."),
     Step("Step 2", "Earn XP and coins",

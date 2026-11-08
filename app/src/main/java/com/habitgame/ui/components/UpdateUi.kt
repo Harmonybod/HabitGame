@@ -49,7 +49,7 @@ fun UpdateBanner() {
             Text("⬆️", fontSize = 26.sp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("HabitGame ${release.version} is out", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text("bits ${release.version} is out", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
                     when (val s = state) {
                         is UpdateState.Downloading -> "Downloading… ${(s.progress * 100).toInt()}%"

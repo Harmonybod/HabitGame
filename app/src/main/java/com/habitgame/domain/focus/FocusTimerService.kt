@@ -228,7 +228,7 @@ class FocusTimerService : Service() {
             if (nm.getNotificationChannel(CHANNEL_DONE) == null) {
                 nm.createNotificationChannel(
                     NotificationChannel(CHANNEL_DONE, "Focus finished", NotificationManager.IMPORTANCE_HIGH).apply {
-                        description = "HabitGame's chime when a focus block or a break ends"
+                        description = "bits' chime when a focus block or a break ends"
                         setSound(
                             chimeUri(context),
                             AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT).build()

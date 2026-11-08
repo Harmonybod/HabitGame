@@ -130,20 +130,20 @@ private fun PermissionsPage(
         Text("Two permissions", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Tap Allow, find HabitGame in the list, switch it on, then come back here.",
+            "Tap Allow, find bits in the list, switch it on, then come back here.",
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(28.dp))
 
         PermissionRow(
             icon = "📊", title = "Usage access",
-            description = "Lets HabitGame see which app is open, so it knows when to lock it",
+            description = "Lets bits see which app is open, so it knows when to lock it",
             granted = hasUsageStats, onGrant = onRequestUsageStats
         )
         Spacer(Modifier.height(12.dp))
         PermissionRow(
             icon = "🖥️", title = "Display over other apps",
-            description = "Lets HabitGame show the lock screen on top of a locked app",
+            description = "Lets bits show the lock screen on top of a locked app",
             granted = hasOverlay, onGrant = onRequestOverlay
         )
 

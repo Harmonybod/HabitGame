@@ -358,7 +358,7 @@ private fun AddWidgetButton(name: String, receiver: Class<out androidx.glance.ap
     TextButton(onClick = {
         scope.launch {
             val asked = runCatching { androidx.glance.appwidget.GlanceAppWidgetManager(context).requestPinGlanceAppWidget(receiver) }.getOrDefault(false)
-            hint = if (asked) null else "Long-press your home screen → Widgets → HabitGame → $name."
+            hint = if (asked) null else "Long-press your home screen → Widgets → bits → $name."
         }
     }, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("📌 Add to home screen", fontWeight = FontWeight.SemiBold) }
     hint?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }

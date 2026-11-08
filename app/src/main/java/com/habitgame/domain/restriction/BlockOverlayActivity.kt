@@ -75,7 +75,7 @@ fun BlockOverlayScreen(onDismiss: () -> Unit) {
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5B3EDC))
             ) {
-                Text("Go Back to HabitGame")
+                Text("Go back to bits")
             }
         }
     }

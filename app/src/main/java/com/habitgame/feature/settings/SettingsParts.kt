@@ -122,14 +122,14 @@ internal fun WidgetsSection() {
                             androidx.glance.appwidget.GlanceAppWidgetManager(context).requestPinGlanceAppWidget(receiver)
                         }.getOrDefault(false)
                         hint = if (asked) null
-                        else "Your launcher can't add widgets from here. Long-press your home screen → Widgets → HabitGame."
+                        else "Your launcher can't add widgets from here. Long-press your home screen → Widgets → bits."
                     }
                 }) { Text("Add", fontSize = 13.sp) }
             }
         }
         hint?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
         Text(
-            "Or long-press your home screen → Widgets → HabitGame.",
+            "Or long-press your home screen → Widgets → bits.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall
         )

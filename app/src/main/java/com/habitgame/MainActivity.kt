@@ -13,6 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -181,9 +185,21 @@ fun PermissionGate(content: @Composable () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.padding(32.dp)
             ) {
-                Text("🎮", fontSize = 64.sp)
+                // The app icon in use, as the launcher shows it
+                Box(
+                    Modifier
+                        .size(96.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.Black)
+                ) {
+                    androidx.compose.foundation.Image(
+                        androidx.compose.ui.res.painterResource(com.habitgame.domain.appicon.LauncherIcon.current(LocalContext.current).art),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.5f; scaleY = 1.5f }
+                    )
+                }
                 Text(
-                    "HabitGame",
+                    "bits",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold

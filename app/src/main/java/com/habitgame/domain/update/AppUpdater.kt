@@ -113,7 +113,7 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
         val dm = context.getSystemService(DownloadManager::class.java) ?: return false
         val id = dm.enqueue(
             DownloadManager.Request(Uri.parse(release.apkUrl))
-                .setTitle("HabitGame ${release.version}")
+                .setTitle("bits ${release.version}")
                 .setDescription("Downloading the update")
                 .setMimeType(APK_TYPE)
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)

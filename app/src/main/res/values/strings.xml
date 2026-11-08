@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HabitGame</string>
+    <string name="app_name">bits</string>
 
     <!-- Home-screen widgets: names and descriptions in the widget picker -->
     <string name="widget_checklist_name">Today\'s checklist</string>

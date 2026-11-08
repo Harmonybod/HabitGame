@@ -172,7 +172,7 @@ fun SignInStep(onDone: () -> Unit) {
         Text("Keep your progress safe", fontWeight = FontWeight.Bold, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
         Text(
-            "Sign in with Google to back up your levels, coins, streak, journal and savings, and keep them the same on every phone you use. Already used HabitGame on another phone? Sign in and that progress comes to this phone.",
+            "Sign in with Google to back up your levels, coins, streak, journal and savings, and keep them the same on every phone you use. Already used bits on another phone? Sign in and that progress comes to this phone.",
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(32.dp))

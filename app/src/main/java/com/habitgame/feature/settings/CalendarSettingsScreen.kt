@@ -50,7 +50,7 @@ fun CalendarSettingsScreen(onBack: () -> Unit) {
         item {
             Text(
                 "Your tasks, habits and shopping deadlines go into your calendar, so they show in Google Calendar on every device " +
-                    "and your calendar app reminds you with its own alerts. HabitGame only ever changes the events it added.",
+                    "and your calendar app reminds you with its own alerts. bits only ever changes the events it added.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
             )
         }
@@ -59,7 +59,7 @@ fun CalendarSettingsScreen(onBack: () -> Unit) {
             item {
                 GameCard {
                     Text("📅 Allow calendar access", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    Text("HabitGame needs it to add and update its events.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text("bits needs it to add and update its events.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(10.dp))
                     Button(onClick = { ask.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)) }) { Text("Allow") }
                 }
@@ -93,9 +93,9 @@ fun CalendarSettingsScreen(onBack: () -> Unit) {
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.6f), modifier = Modifier.padding(vertical = 10.dp))
                     SwitchRow(
-                        "HabitGame reminders too",
-                        "HabitGame's own alerts, with a Done ✓ button. Off means only the calendar reminds you. " +
-                            "The “still to do” nudge 30 min later still comes from HabitGame.",
+                        "bits reminders too",
+                        "bits' own alerts, with a Done ✓ button. Off means only the calendar reminds you. " +
+                            "The “still to do” nudge 30 min later still comes from bits.",
                         state.appReminders, sync::setAppReminders
                     )
                 }
@@ -118,7 +118,7 @@ fun CalendarSettingsScreen(onBack: () -> Unit) {
                         OutlinedButton(onClick = sync::disable, modifier = Modifier.weight(1f)) { Text("Turn off", color = DangerRed.readable()) }
                     }
                     Text(
-                        "Turning off removes HabitGame's events from the calendar.",
+                        "Turning off removes bits' events from the calendar.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                     )
                 }

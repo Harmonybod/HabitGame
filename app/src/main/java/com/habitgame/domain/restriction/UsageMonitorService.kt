@@ -162,7 +162,7 @@ class UsageMonitorService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-            .setContentTitle("HabitGame app lock is on")
+            .setContentTitle("bits app lock is on")
             .setContentText("Your distracting apps are locked 🎯")
             .setOngoing(true)
             .build()

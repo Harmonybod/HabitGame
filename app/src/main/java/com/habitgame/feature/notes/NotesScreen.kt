@@ -109,7 +109,7 @@ private fun SamsungNotesCard(context: android.content.Context) {
             Column(Modifier.weight(1f)) {
                 Text("From Samsung Notes", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Open a note → Share → Text file (or Text) → HabitGame “Save to notes”.",
+                    "Open a note → Share → Text file (or Text) → bits “Save to notes”.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -205,7 +205,7 @@ fun NoteEditorScreen(onBack: () -> Unit, viewModel: NoteEditorViewModel = hiltVi
             onDismissRequest = { confirmDelete = false },
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = { Text("Delete this note?", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
-            text = { Text("It's removed from HabitGame. The original in Samsung Notes (if it came from there) isn't touched.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            text = { Text("It's removed from bits. The original in Samsung Notes (if it came from there) isn't touched.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete(onBack) }) { Text("Delete", fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
         )
