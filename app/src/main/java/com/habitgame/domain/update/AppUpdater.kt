@@ -22,8 +22,8 @@ import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A newer HabitGame published on GitHub. */
-data class AppRelease(val version: String, val notes: String, val apkUrl: String, val pageUrl: String)
+/** A newer HabitGame published on GitHub. [apiUrl] is the same APK through GitHub's API (null in releases saved by older versions). */
+data class AppRelease(val version: String, val notes: String, val apkUrl: String, val pageUrl: String, val apiUrl: String? = null)
 
 sealed interface UpdateState {
     data object None : UpdateState
@@ -109,16 +109,33 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
         install(file)
     }
 
+    /**
+     * GitHub's download link sometimes answers "504 Gateway Time-out" for a while, so a failed
+     * download is tried again a few times, switching between that link and the API's link to the same file.
+     */
     private suspend fun download(release: AppRelease, file: File): Boolean {
+        val links = listOfNotNull(release.apkUrl, release.apiUrl)
+        repeat(DOWNLOAD_TRIES) { attempt ->
+            if (attempt > 0) {
+                file.delete()
+                delay(attempt * 2_000L)
+            }
+            if (downloadOnce(release, links[attempt % links.size], file)) return true
+        }
+        return false
+    }
+
+    private suspend fun downloadOnce(release: AppRelease, link: String, file: File): Boolean {
         val dm = context.getSystemService(DownloadManager::class.java) ?: return false
-        val id = dm.enqueue(
-            DownloadManager.Request(Uri.parse(release.apkUrl))
-                .setTitle("bits ${release.version}")
-                .setDescription("Downloading the update")
-                .setMimeType(APK_TYPE)
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                .setDestinationUri(Uri.fromFile(file))
-        )
+        val request = DownloadManager.Request(Uri.parse(link))
+            .setTitle("bits ${release.version}")
+            .setDescription("Downloading the update")
+            .setMimeType(APK_TYPE)
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+            .setDestinationUri(Uri.fromFile(file))
+        // The API sends the file itself (not its details) when asked for raw bytes
+        if (link == release.apiUrl) request.addRequestHeader("Accept", "application/octet-stream")
+        val id = dm.enqueue(request)
         while (true) {
             delay(500)
             val (status, done, total) = dm.query(DownloadManager.Query().setFilterById(id))?.use { c ->
@@ -131,7 +148,10 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
             } ?: return false
             when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> return true
-                DownloadManager.STATUS_FAILED -> return false
+                DownloadManager.STATUS_FAILED -> {
+                    dm.remove(id)   // no "download unsuccessful" left behind; the next try has its own
+                    return false
+                }
                 else -> if (total > 0) _state.value = UpdateState.Downloading(release, done.toFloat() / total)
             }
         }
@@ -170,15 +190,16 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
                 else -> throw java.io.IOException("GitHub answered ${connection.responseCode}")
             }
             val json = JsonParser.parseString(connection.inputStream.bufferedReader().readText()).asJsonObject
-            val apk = json.getAsJsonArray("assets")
+            val asset = json.getAsJsonArray("assets")
                 ?.map { it.asJsonObject }
-                ?.firstOrNull { it.get("name")?.asString?.endsWith(".apk") == true }
-                ?.get("browser_download_url")?.asString ?: return null
+                ?.firstOrNull { it.get("name")?.asString?.endsWith(".apk") == true } ?: return null
+            val apk = asset.get("browser_download_url")?.asString ?: return null
             return AppRelease(
                 version = json.get("tag_name")?.asString.orEmpty().removePrefix("v"),
                 notes = json.get("body")?.takeIf { !it.isJsonNull }?.asString.orEmpty().trim(),
                 apkUrl = apk,
-                pageUrl = json.get("html_url")?.asString.orEmpty()
+                pageUrl = json.get("html_url")?.asString.orEmpty(),
+                apiUrl = asset.get("url")?.asString
             )
         } finally {
             connection.disconnect()
@@ -193,6 +214,7 @@ class AppUpdater @Inject constructor(@ApplicationContext private val context: Co
         private const val KEY_SNOOZED = "snoozed_version"
         private const val KEY_RELEASE = "found_release"
         private const val CHECK_EVERY = 3 * 60 * 60_000L
+        private const val DOWNLOAD_TRIES = 4
 
         /** "2.10" is newer than "2.9"; "2.4" isn't newer than "2.4". Non-numbers count as 0. */
         fun isNewer(candidate: String, installed: String): Boolean {
